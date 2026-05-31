@@ -1,0 +1,13 @@
+*.lock
+.dart_tool/
+.packages
+build/
+.pub-cache/
+.pub/
+android/.gradle/
+android/app/build/
+android/local.properties
+ios/Pods/
+.idea/
+*.iml
+.vscode/
