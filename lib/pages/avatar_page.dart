@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_painter.dart';
+import '../widgets/model_avatar.dart';
 import '../widgets/glass_card.dart';
 
 class AvatarPage extends StatelessWidget {
@@ -33,6 +34,8 @@ class AvatarPage extends StatelessWidget {
     return Column(
       children: [
         _appBar(context, b, dangerColor),
+        if (onCharacterChanged != null)
+          _charChips(b),
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -107,12 +110,9 @@ class AvatarPage extends StatelessWidget {
                   blurRadius: 30, spreadRadius: 8)]),
             ),
           ),
-          CustomPaint(
-            size: Size(280.w, 280.w),
-            painter: AvatarPainter(
-              theta: theta, phi: phi, fallProbability: fallProbability,
-              mode: mode, time: time, character: character,
-            ),
+          ModelAvatar(
+            theta: theta, phi: phi, fallProbability: fallProbability,
+            mode: mode, size: 280.w, character: character,
           ),
           Positioned(
             top: 10.h,
@@ -201,6 +201,43 @@ class AvatarPage extends StatelessWidget {
         ]),
       ]),
     ).animate().fadeIn(delay: 300.ms, duration: 400.ms);
+  }
+
+  Widget _charChips(Brightness b) {
+    final items = [
+      (AvatarCharacter.male, Icons.man_rounded, "男性"),
+      (AvatarCharacter.female, Icons.woman_rounded, "女性"),
+      (AvatarCharacter.child, Icons.child_care_rounded, "儿童"),
+    ];
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 4.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: items.map((item) {
+          final sel = character == item.$1;
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: GestureDetector(
+              onTap: () => onCharacterChanged?.call(item.$1),
+              child: AnimatedContainer(
+                duration: 200.ms,
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18.r),
+                  color: sel ? AppTheme.accent.withValues(alpha: 0.1) : AppTheme.cardBg(b),
+                  border: Border.all(color: sel ? AppTheme.accent.withValues(alpha: 0.3) : AppTheme.divider(b)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(item.$2, size: 16.sp, color: sel ? AppTheme.accent : AppTheme.textDim(b)),
+                  SizedBox(width: 4.w),
+                  Text(item.$3, style: TextStyle(fontSize: 13, fontWeight: sel ? FontWeight.w600 : FontWeight.w400, color: sel ? AppTheme.accent : AppTheme.textDim(b))),
+                ]),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    ).animate().fadeIn(duration: 200.ms);
   }
 
   String get _modeText {

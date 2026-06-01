@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'pages/avatar_page.dart';
 import 'pages/dashboard_page.dart';
+import 'pages/profile_page.dart';
 import 'services/alert_service.dart';
 import 'services/huawei_api.dart';
 import 'theme/app_theme.dart';
@@ -91,6 +92,7 @@ class _MainPageState extends State<MainPage> {
   double _theta = 8.0, _phi = 0.0, _vdp = 1.0, _hhadm = 100.0, _fallProb = 0.0;
   String _mode = "standing", _status = "connecting";
   AvatarCharacter _character = AvatarCharacter.male;
+  bool _profileDone = false;
 
   Map<String, dynamic> _pillboxData = {};
   Map<String, dynamic> _scaleData = {};
@@ -197,6 +199,12 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_profileDone) {
+      return ProfilePage(
+        onComplete: () => setState(() => _profileDone = true),
+      );
+    }
+
     final b = Theme.of(context).brightness;
     return Scaffold(
       body: PageView(
