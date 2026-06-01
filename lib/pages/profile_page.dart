@@ -61,41 +61,46 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: AppTheme.pageBg(b),
       body: SafeArea(
-        child: Column(children: [
-          // 进度条
-          Padding(
-            padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 0),
-            child: Row(children: List.generate(4, (i) {
-              final active = i <= _step;
-              return Expanded(
-                child: Container(
-                  height: 3.h,
-                  margin: EdgeInsets.symmetric(horizontal: 2.w),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2.r),
-                    color: active ? AppTheme.accent : AppTheme.divider(b),
+        child: Stack(children: [
+          // 可滚动内容区
+          Column(children: [
+            // 进度条
+            Padding(
+              padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 0),
+              child: Row(children: List.generate(4, (i) {
+                final active = i <= _step;
+                return Expanded(
+                  child: Container(
+                    height: 3.h,
+                    margin: EdgeInsets.symmetric(horizontal: 2.w),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2.r),
+                      color: active ? AppTheme.accent : AppTheme.divider(b),
+                    ),
                   ),
-                ),
-              );
-            })),
-          ),
-
-          // 步骤内容
-          Flexible(
-            child: PageView(
-              controller: _pageCtrl,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _stepGender(b),
-                _stepAge(b),
-                _stepBody(b),
-                _stepConfirm(b),
-              ],
+                );
+              })),
             ),
-          ),
+            Expanded(
+              child: PageView(
+                controller: _pageCtrl,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _stepGender(b),
+                  _stepAge(b),
+                  _stepBody(b),
+                  _stepConfirm(b),
+                ],
+              ),
+            ),
+            SizedBox(height: 72.h), // 给底部按钮留空间
+          ]),
 
-          // 底部按钮
-          _bottomBar(b),
+          // 悬浮底部按钮
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: _bottomBar(b),
+          ),
         ]),
       ),
     );
@@ -103,7 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── Step 1: 性别 ──
   Widget _stepGender(Brightness b) {
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         // 人物预览
