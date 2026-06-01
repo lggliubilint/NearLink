@@ -18,7 +18,7 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> with SingleTickerProviderStateMixin {
+class _DashboardPageState extends State<DashboardPage> with TickerProviderStateMixin {
   late final AnimationController _scanCtrl;
   late final TabController _tabCtrl;
   final List<double> _hrHistory = List.generate(20, (_) => 72.0, growable: true);
