@@ -64,7 +64,7 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(children: [
           // 进度条
           Padding(
-            padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0),
+            padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 0),
             child: Row(children: List.generate(4, (i) {
               final active = i <= _step;
               return Expanded(
@@ -81,7 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
 
           // 步骤内容
-          Expanded(
+          Flexible(
             child: PageView(
               controller: _pageCtrl,
               physics: const NeverScrollableScrollPhysics(),
@@ -108,7 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         // 人物预览
         SizedBox(
-          width: 200.w, height: 200.w,
+          width: 160.w, height: 160.w,
           child: CustomPaint(
             painter: AvatarPainter(
               theta: 8, phi: 30, mode: 'standing',
@@ -118,9 +118,9 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ).animate().scale(duration: 400.ms, begin: const Offset(0.9, 0.9)),
 
-        SizedBox(height: 32.h),
+        SizedBox(height: 20.h),
         Text("选择您的身份", style: AppTheme.h1(b)),
-        SizedBox(height: 8.h),
+        SizedBox(height: 6.h),
         Text("这将用于匹配最适合的姿态检测模型",
           style: AppTheme.body(b), textAlign: TextAlign.center),
         SizedBox(height: 32.h),
@@ -303,7 +303,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // ── 底部按钮 ──
   Widget _bottomBar(Brightness b) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 20.h),
+      padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 8.h),
       child: Row(children: [
         if (_step > 0)
           GestureDetector(
