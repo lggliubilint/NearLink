@@ -115,7 +115,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: Center(
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(_step == 3 ? "START MONITORING" : "NEXT",
+                          Text(_step == 3 ? "开始监护" : "下一步",
                             style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1)),
                           SizedBox(width: 8.w),
                           Icon(_step == 3 ? Icons.play_arrow : Icons.arrow_forward, color: Colors.black, size: 20.sp),
@@ -145,8 +145,6 @@ class _ProfilePageState extends State<ProfilePage> {
               character: _profile.character, fallProbability: 0, time: 0)),
           ).animate().scale(duration: 500.ms, begin: const Offset(0.85, 0.85)),
           SizedBox(height: 24.h),
-          Text("WHO ARE YOU", style: AppTheme.caption().copyWith(letterSpacing: 3)),
-          SizedBox(height: 8.h),
           Text("选择身份", style: AppTheme.h1()),
           SizedBox(height: 32.h),
           Row(children: [
@@ -196,15 +194,13 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.cyan.withValues(alpha: 0.2), width: 1)),
             child: Center(child: Icon(Icons.cake, size: 36.sp, color: AppTheme.cyan))),
           SizedBox(height: 24.h),
-          Text("AGE", style: AppTheme.caption().copyWith(letterSpacing: 3)),
-          SizedBox(height: 8.h),
           Text("年龄", style: AppTheme.h1()),
           SizedBox(height: 8.h),
           Text("影响跌倒风险阈值判定", style: AppTheme.body()),
           SizedBox(height: 32.h),
           Text("${_profile.age}", style: AppTheme.mono(72, AppTheme.cyan)),
           SizedBox(height: 4.h),
-          Text("YEARS OLD", style: AppTheme.caption()),
+          Text("岁", style: AppTheme.caption()),
           SizedBox(height: 16.h),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(activeTrackColor: AppTheme.cyan, thumbColor: AppTheme.cyan, trackHeight: 2, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8)),
@@ -228,13 +224,11 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.cyan.withValues(alpha: 0.2), width: 1)),
             child: Center(child: Icon(Icons.monitor_weight, size: 36.sp, color: AppTheme.cyan))),
           SizedBox(height: 24.h),
-          Text("PHYSICAL", style: AppTheme.caption().copyWith(letterSpacing: 3)),
-          SizedBox(height: 8.h),
           Text("身体数据", style: AppTheme.h1()),
           SizedBox(height: 32.h),
-          _num("HEIGHT 身高", _profile.heightCm, "cm", 100, 250),
+          _num("身高", _profile.heightCm, "cm", 100, 250),
           SizedBox(height: 24.h),
-          _num("WEIGHT 体重", _profile.weightKg, "kg", 30, 200),
+          _num("体重", _profile.weightKg, "kg", 30, 200),
         ]),
       ),
     );
@@ -268,7 +262,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── 确认 ──
   Widget _confirm() {
-    final cLabel = _profile.character == AvatarCharacter.male ? "MALE" : _profile.character == AvatarCharacter.female ? "FEMALE" : "CHILD";
+    final cLabel = _profile.character == AvatarCharacter.male ? "男性" : _profile.character == AvatarCharacter.female ? "女性" : "儿童";
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -278,8 +272,6 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [AppTheme.cyan, AppTheme.green])),
             child: const Icon(Icons.check, size: 40, color: Colors.black)),
           SizedBox(height: 24.h),
-          Text("CONFIRM", style: AppTheme.caption().copyWith(letterSpacing: 3)),
-          SizedBox(height: 8.h),
           Text("确认档案", style: AppTheme.h1()),
           SizedBox(height: 32.h),
           GlassCard(
@@ -293,13 +285,13 @@ class _ProfilePageState extends State<ProfilePage> {
               Row(children: [
                 const Icon(Icons.cake, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
                 Text("年龄", style: AppTheme.body()), const Spacer(),
-                Text("${_profile.age} YRS", style: AppTheme.mono(14, AppTheme.cyan)),
+                Text("${_profile.age} 岁", style: AppTheme.mono(14, AppTheme.cyan)),
               ]),
               const Divider(height: 20, color: Color(0x1AFFFFFF)),
               Row(children: [
                 const Icon(Icons.height, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
                 Text("身高", style: AppTheme.body()), const Spacer(),
-                Text("${_profile.heightCm.toInt()} CM", style: AppTheme.mono(14, AppTheme.cyan)),
+                Text("${_profile.heightCm.toInt()} 厘米", style: AppTheme.mono(14, AppTheme.cyan)),
               ]),
               const Divider(height: 20, color: Color(0x1AFFFFFF)),
               Row(children: [

@@ -25,17 +25,19 @@ class AvatarPage extends StatelessWidget {
 
   Color _accent() => fallProbability > 0.7 ? AppTheme.red : fallProbability > 0.3 ? AppTheme.amber : AppTheme.cyan;
 
+  String get _modeText {
+    if (fallProbability > 0.7) return "跌倒警告";
+    if (fallProbability > 0.3) return "异常姿态";
+    return switch (mode) { "walking" => "行走中", "bending" => "弯腰中", "falling" => "正在跌倒", "fallen" => "已倒地", "recovering" => "恢复中", _ => "正常站立" };
+  }
+
   @override
   Widget build(BuildContext context) {
     final ac = _accent();
     final isDanger = fallProbability > 0.7;
 
     return Stack(children: [
-      // 背景呼吸脉冲（跌倒>80%时触发）
-      if (isDanger)
-        Positioned.fill(
-          child: _BreathingBg(),
-        ),
+      if (isDanger) Positioned.fill(child: _BreathingBg()),
 
       SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -46,67 +48,57 @@ class AvatarPage extends StatelessWidget {
             _appBar(ac),
             SizedBox(height: 16.h),
 
-            // ── 3D 数字孪生 ──
             GlassCard(
               padding: EdgeInsets.zero,
               borderColor: ac.withValues(alpha: 0.15),
-              child: SizedBox(
-                width: double.infinity, height: 320.h,
+              child: SizedBox(width: double.infinity, height: 320.h,
                 child: Stack(alignment: Alignment.center, children: [
-                  Positioned(bottom: 20.h,
-                    child: Container(width: 120.w, height: 12.h,
-                      decoration: BoxDecoration(boxShadow: [BoxShadow(color: ac.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 12)]))),
+                  Positioned(bottom: 20.h, child: Container(width: 120.w, height: 12.h,
+                    decoration: BoxDecoration(boxShadow: [BoxShadow(color: ac.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 12)]))),
                   ModelAvatar(theta: theta, phi: phi, fallProbability: fallProbability, mode: mode, size: 280.w, character: character),
-                  Positioned(top: 10.h,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8.r), border: Border.all(color: ac.withValues(alpha: 0.2))),
-                      child: Text(status.toUpperCase(), style: AppTheme.caption().copyWith(color: ac))),
-                  ),
+                  Positioned(top: 10.h, child: Container(padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(8.r), border: Border.all(color: ac.withValues(alpha: 0.2))),
+                    child: Text(_modeText, style: AppTheme.caption().copyWith(color: ac)))),
                 ]),
               ),
             ).animate().fadeIn(duration: 500.ms),
 
             SizedBox(height: 16.h),
 
-            // ── 姿态数据 ──
             GlassCard(
               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                _num("θ 俯仰", theta.toStringAsFixed(1), "°", AppTheme.cyan, Icons.height),
-                _num("φ 转向", (phi % 360).toStringAsFixed(0), "°", const Color(0xFF7C4DFF), Icons.explore),
-                _num("vΔΦ", vDeltaPhi.toStringAsFixed(1), "/s", AppTheme.amber, Icons.speed),
+                _num("俯仰角 θ", theta.toStringAsFixed(1), "°", AppTheme.cyan, Icons.height),
+                _num("转向角 φ", (phi % 360).toStringAsFixed(0), "°", const Color(0xFF7C4DFF), Icons.explore),
+                _num("速率 vΔΦ", vDeltaPhi.toStringAsFixed(1), "/s", AppTheme.amber, Icons.speed),
               ]),
             ).animate().fadeIn(delay: 100.ms),
 
             SizedBox(height: 12.h),
 
-            // ── HHADM 高度 ──
             GlassCard(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
               child: Row(children: [
                 Container(padding: EdgeInsets.all(8.w), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.green.withValues(alpha: 0.2))),
                   child: const Icon(Icons.height, size: 18, color: AppTheme.green)),
                 SizedBox(width: 12.w),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text("HHADM", style: AppTheme.caption().copyWith(letterSpacing: 2)),
-                  SizedBox(height: 2.h),
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text(hhadm.toStringAsFixed(0), style: AppTheme.mono(24, AppTheme.green)),
-                    SizedBox(width: 4.w),
-                    Padding(padding: EdgeInsets.only(bottom: 4.h), child: Text("cm", style: AppTheme.caption()))]),
+                Text("胸部距地高度", style: AppTheme.caption()),
+                SizedBox(width: 8.w),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(hhadm.toStringAsFixed(0), style: AppTheme.mono(24, AppTheme.green)),
+                  SizedBox(width: 4.w),
+                  Padding(padding: EdgeInsets.only(bottom: 4.h), child: Text("cm", style: AppTheme.caption())),
                 ]),
               ]),
             ).animate().fadeIn(delay: 150.ms),
 
             SizedBox(height: 12.h),
 
-            // ── 跌倒风险 ──
             GlassCard(
               borderColor: ac.withValues(alpha: 0.15),
               child: Column(children: [
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text("FALL RISK", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+                  Text("跌倒风险", style: AppTheme.caption()),
                   Text("${(fallProbability * 100).toInt()}%", style: AppTheme.mono(28, ac)),
                 ]),
                 SizedBox(height: 8.h),
@@ -114,9 +106,9 @@ class AvatarPage extends StatelessWidget {
                   child: LinearProgressIndicator(value: fallProbability, minHeight: 6.h, backgroundColor: ac.withValues(alpha: 0.08), valueColor: AlwaysStoppedAnimation(ac))),
                 SizedBox(height: 8.h),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text("NORMAL", style: AppTheme.caption().copyWith(color: fallProbability < 0.25 ? AppTheme.cyan : AppTheme.textTertiary)),
-                  Text("WARNING", style: AppTheme.caption().copyWith(color: fallProbability >= 0.25 && fallProbability < 0.5 ? AppTheme.amber : AppTheme.textTertiary)),
-                  Text("DANGER", style: AppTheme.caption().copyWith(color: fallProbability >= 0.5 ? AppTheme.red : AppTheme.textTertiary)),
+                  Text("安全", style: AppTheme.caption().copyWith(color: fallProbability < 0.25 ? AppTheme.cyan : AppTheme.textTertiary)),
+                  Text("注意", style: AppTheme.caption().copyWith(color: fallProbability >= 0.25 && fallProbability < 0.5 ? AppTheme.amber : AppTheme.textTertiary)),
+                  Text("危险", style: AppTheme.caption().copyWith(color: fallProbability >= 0.5 ? AppTheme.red : AppTheme.textTertiary)),
                 ]),
               ]),
             ).animate().fadeIn(delay: 200.ms),
@@ -131,8 +123,6 @@ class AvatarPage extends StatelessWidget {
   Widget _appBar(Color ac) {
     return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("DIGITAL TWIN", style: AppTheme.caption().copyWith(letterSpacing: 3)),
-        SizedBox(height: 4.h),
         Text("数字孪生", style: AppTheme.h1()),
         SizedBox(height: 2.h),
         Row(children: [
@@ -140,13 +130,13 @@ class AvatarPage extends StatelessWidget {
             decoration: BoxDecoration(shape: BoxShape.circle, color: status == "connected" ? AppTheme.green : AppTheme.amber,
               boxShadow: [BoxShadow(color: (status == "connected" ? AppTheme.green : AppTheme.amber).withValues(alpha: 0.5), blurRadius: 6)])),
           SizedBox(width: 6.w),
-          Text(status == "connected" ? "LIVE" : "SIM", style: AppTheme.caption()),
+          Text(status == "connected" ? "华为云在线" : "模拟模式", style: AppTheme.caption()),
         ]),
       ]),
       Container(
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(12.r), border: Border.all(color: ac.withValues(alpha: 0.2))),
-        child: Text(_modeText.toUpperCase(), style: AppTheme.caption().copyWith(color: ac, fontWeight: FontWeight.w600)),
+        child: Text(_modeText, style: AppTheme.caption().copyWith(color: ac, fontWeight: FontWeight.w600)),
       ),
     ]);
   }
@@ -164,36 +154,23 @@ class AvatarPage extends StatelessWidget {
       ]),
     ]);
   }
-
-  String get _modeText {
-    if (fallProbability > 0.7) return "FALL DETECTED";
-    if (fallProbability > 0.3) return "ABNORMAL";
-    return switch (mode) { "walking" => "Walking", "bending" => "Bending", "falling" => "Falling", "fallen" => "Fallen", "recovering" => "Recovering", _ => "Standing" };
-  }
 }
 
-// ── 呼吸闪烁背景 ──
 class _BreathingBg extends StatefulWidget {
   @override
   State<_BreathingBg> createState() => _BreathingBgState();
 }
-
 class _BreathingBgState extends State<_BreathingBg> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: 1.seconds)..repeat(reverse: true);
-  }
+  void initState() { super.initState(); _ctrl = AnimationController(vsync: this, duration: 1.seconds)..repeat(reverse: true); }
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) => Container(
-        color: AppTheme.red.withValues(alpha: 0.03 + _ctrl.value * 0.06),
-      ),
+      builder: (_, __) => Container(color: AppTheme.red.withValues(alpha: 0.03 + _ctrl.value * 0.06)),
     );
   }
 }
