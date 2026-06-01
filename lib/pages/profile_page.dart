@@ -55,6 +55,14 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  void _onNext() {
+    if (_step == 3) {
+      widget.onComplete(_profile);
+    } else {
+      _pageCtrl.nextPage(duration: 300.ms, curve: Curves.easeOutCubic);
+    }
+  }
+
   @override
   void dispose() { _pageCtrl.dispose(); super.dispose(); }
 
@@ -77,7 +85,48 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 80),
           ]),
           // 底部按钮
-          const Positioned(bottom: 0, left: 0, right: 0, child: _Bottom()),
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
+              child: Row(children: [
+                if (_step > 0)
+                  GestureDetector(
+                    onTap: () => _pageCtrl.previousPage(duration: 300.ms, curve: Curves.easeOutCubic),
+                    child: Container(
+                      width: 48.w, height: 48.w,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      child: const Icon(Icons.arrow_back, color: AppTheme.textSecondary, size: 22),
+                    ),
+                  ),
+                if (_step > 0) SizedBox(width: 12.w),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _onNext,
+                    child: Container(
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: const LinearGradient(colors: [AppTheme.cyan, Color(0xFF0078D4)]),
+                        boxShadow: [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 4))],
+                      ),
+                      child: Center(
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(_step == 3 ? "START MONITORING" : "NEXT",
+                            style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                          SizedBox(width: 8.w),
+                          Icon(_step == 3 ? Icons.play_arrow : Icons.arrow_forward, color: Colors.black, size: 20.sp),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ),
         ]),
       ),
     );
@@ -307,40 +356,3 @@ class _Line extends StatelessWidget {
   }
 }
 
-// ── 底部按钮 ──
-class _Bottom extends StatelessWidget {
-  const _Bottom();
-  @override
-  Widget build(BuildContext context) {
-    final state = context.findAncestorStateOfType<_ProfilePageState>();
-    if (state == null) return const SizedBox.shrink();
-    final isLast = state._step == 3;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
-      child: GestureDetector(
-        onTap: () {
-          if (isLast) {
-            state.widget.onComplete(state._profile);
-          } else {
-            state._pageCtrl.nextPage(duration: 400.ms, curve: Curves.easeOutCubic);
-          }
-        },
-        child: Container(
-          height: 52.h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(colors: [AppTheme.cyan, Color(0xFF0078D4)]),
-            boxShadow: [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 4))],
-          ),
-          child: Center(
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(isLast ? "START MONITORING" : "NEXT", style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1)),
-              SizedBox(width: 8.w),
-              Icon(isLast ? Icons.play_arrow : Icons.arrow_forward, color: Colors.black, size: 20.sp),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
