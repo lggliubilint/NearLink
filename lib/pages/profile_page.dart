@@ -1,4 +1,5 @@
-/// 个人档案配置页 — 性别/年龄/身高/体重
+/// 个人档案页 — Med-Tech 暗色设计
+/// 配置的数据通过 UserProfile 传回 main 供整个 App 使用
 library;
 
 import 'package:flutter/material.dart';
@@ -6,8 +7,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_painter.dart';
+import '../widgets/glass_card.dart';
 
-/// 用户档案数据
 class UserProfile {
   AvatarCharacter character;
   int age;
@@ -20,11 +21,20 @@ class UserProfile {
     this.heightCm = 170,
     this.weightKg = 70,
   });
+
+  // 根据档案计算跌倒检测灵敏度
+  double get fallSensitivity {
+    if (age > 65) return 0.85;
+    if (age > 45) return 0.75;
+    return 0.65;
+  }
+
+  // 重心高度估计 (cm) — 用于 HHADM 参考
+  double get estimatedCenterOfMass => heightCm * 0.56;
 }
 
 class ProfilePage extends StatefulWidget {
-  final VoidCallback onComplete;
-
+  final void Function(UserProfile) onComplete;
   const ProfilePage({super.key, required this.onComplete});
 
   @override
@@ -32,345 +42,305 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  late final UserProfile _profile;
+  final _profile = UserProfile();
   final _pageCtrl = PageController();
   int _step = 0;
 
   @override
   void initState() {
     super.initState();
-    _profile = UserProfile();
     _pageCtrl.addListener(() {
-      final p = _pageCtrl.page ?? 0;
-      if ((p - _step).abs() > 0.5 && mounted) {
-        setState(() => _step = p.round());
-      }
+      final p = (_pageCtrl.page ?? 0).round();
+      if (p != _step && mounted) setState(() => _step = p);
     });
   }
 
   @override
-  void dispose() {
-    _pageCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _pageCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    final b = Theme.of(context).brightness;
-
     return Scaffold(
-      backgroundColor: AppTheme.pageBg(b),
+      backgroundColor: AppTheme.bg,
       body: SafeArea(
         child: Stack(children: [
-          // 可滚动内容区
+          // 内容区
           Column(children: [
-            // 进度条
-            Padding(
-              padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 0),
-              child: Row(children: List.generate(4, (i) {
-                final active = i <= _step;
-                return Expanded(
-                  child: Container(
-                    height: 3.h,
-                    margin: EdgeInsets.symmetric(horizontal: 2.w),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2.r),
-                      color: active ? AppTheme.accent : AppTheme.divider(b),
-                    ),
-                  ),
-                );
-              })),
-            ),
+            _ProgressBar(step: _step),
             Expanded(
               child: PageView(
                 controller: _pageCtrl,
                 physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _stepGender(b),
-                  _stepAge(b),
-                  _stepBody(b),
-                  _stepConfirm(b),
-                ],
+                children: [_gender(), _age(), _body(), _confirm()],
               ),
             ),
-            SizedBox(height: 72.h), // 给底部按钮留空间
+            const SizedBox(height: 80),
           ]),
-
-          // 悬浮底部按钮
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: _bottomBar(b),
-          ),
+          // 底部按钮
+          const Positioned(bottom: 0, left: 0, right: 0, child: _Bottom()),
         ]),
       ),
     );
   }
 
-  // ── Step 1: 性别 ──
-  Widget _stepGender(Brightness b) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 24.w),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        // 人物预览
-        SizedBox(
-          width: 160.w, height: 160.w,
-          child: CustomPaint(
-            painter: AvatarPainter(
+  // ── 性别 ──
+  Widget _gender() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24.w),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: 160.w, height: 160.w,
+            child: CustomPaint(painter: AvatarPainter(
               theta: 8, phi: 30, mode: 'standing',
-              character: _profile.character, time: 0,
-              fallProbability: 0,
-            ),
-          ),
-        ).animate().scale(duration: 400.ms, begin: const Offset(0.9, 0.9)),
-
-        SizedBox(height: 20.h),
-        Text("选择您的身份", style: AppTheme.h1(b)),
-        SizedBox(height: 6.h),
-        Text("这将用于匹配最适合的姿态检测模型",
-          style: AppTheme.body(b), textAlign: TextAlign.center),
-        SizedBox(height: 32.h),
-
-        Row(children: [
-          Expanded(child: _genderBtn(AvatarCharacter.male, Icons.man_rounded, "男性", b)),
-          SizedBox(width: 12.w),
-          Expanded(child: _genderBtn(AvatarCharacter.female, Icons.woman_rounded, "女性", b)),
-          SizedBox(width: 12.w),
-          Expanded(child: _genderBtn(AvatarCharacter.child, Icons.child_care_rounded, "儿童", b)),
-        ]),
-      ]),
-    );
-  }
-
-  Widget _genderBtn(AvatarCharacter c, IconData ic, String label, Brightness b) {
-    final sel = _profile.character == c;
-    return GestureDetector(
-      onTap: () => setState(() => _profile.character = c),
-      child: AnimatedContainer(
-        duration: 300.ms,
-        padding: EdgeInsets.symmetric(vertical: 16.h),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-          color: sel ? AppTheme.accent.withValues(alpha: 0.1) : AppTheme.cardBg(b),
-          border: Border.all(
-            color: sel ? AppTheme.accent : AppTheme.divider(b),
-            width: sel ? 1.5 : 0.8),
-          boxShadow: sel ? [
-            BoxShadow(color: AppTheme.accent.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4))] : null,
-        ),
-        child: Column(children: [
-          Icon(ic, size: 36.sp, color: sel ? AppTheme.accent : AppTheme.textDim(b)),
-          SizedBox(height: 6.h),
-          Text(label, style: TextStyle(fontSize: 14, fontWeight: sel ? FontWeight.w700 : FontWeight.w400, color: sel ? AppTheme.accent : AppTheme.textDim(b))),
+              character: _profile.character, fallProbability: 0, time: 0)),
+          ).animate().scale(duration: 500.ms, begin: const Offset(0.85, 0.85)),
+          SizedBox(height: 24.h),
+          Text("WHO ARE YOU", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+          SizedBox(height: 8.h),
+          Text("选择身份", style: AppTheme.h1()),
+          SizedBox(height: 32.h),
+          Row(children: [
+            _btn(AvatarCharacter.male, Icons.man, "男性"),
+            SizedBox(width: 12.w),
+            _btn(AvatarCharacter.female, Icons.woman, "女性"),
+            SizedBox(width: 12.w),
+            _btn(AvatarCharacter.child, Icons.child_care, "儿童"),
+          ]),
         ]),
       ),
     );
   }
 
-  // ── Step 2: 年龄 ──
-  Widget _stepAge(Brightness b) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.cake_rounded, size: 48.sp, color: AppTheme.accent),
-        SizedBox(height: 16.h),
-        Text("您的年龄", style: AppTheme.h1(b)),
-        SizedBox(height: 8.h),
-        Text("年龄影响跌倒风险阈值判定",
-          style: AppTheme.body(b), textAlign: TextAlign.center),
-        SizedBox(height: 40.h),
-        Text(_profile.age.toString(),
-          style: AppTheme.mono(64, AppTheme.accent)),
-        SizedBox(height: 8.h),
-        Text("岁", style: AppTheme.h2(b)),
-        SizedBox(height: 20.h),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: AppTheme.accent,
-            thumbColor: AppTheme.accent,
-            trackHeight: 4,
+  Widget _btn(AvatarCharacter c, IconData ic, String label) {
+    final sel = _profile.character == c;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _profile.character = c),
+        child: AnimatedContainer(
+          duration: 300.ms,
+          padding: EdgeInsets.symmetric(vertical: 20.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: sel ? AppTheme.cyan : Colors.white.withValues(alpha: 0.06), width: sel ? 1 : 0.5),
+            color: sel ? AppTheme.cyan.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.02),
+            boxShadow: sel ? [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.15), blurRadius: 16)] : null,
           ),
-          child: Slider(
-            value: _profile.age.toDouble(),
-            min: 1, max: 120, divisions: 119,
-            label: "${_profile.age} 岁",
-            onChanged: (v) => setState(() => _profile.age = v.round()),
-          ),
+          child: Column(children: [
+            Icon(ic, size: 32.sp, color: sel ? AppTheme.cyan : AppTheme.textTertiary),
+            SizedBox(height: 8.h),
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: sel ? AppTheme.cyan : AppTheme.textTertiary)),
+          ]),
         ),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text("1", style: AppTheme.caption(b)),
-          Text("120", style: AppTheme.caption(b)),
+      ),
+    );
+  }
+
+  // ── 年龄 ──
+  Widget _age() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24.w),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 80.w, height: 80.w,
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.cyan.withValues(alpha: 0.2), width: 1)),
+            child: Center(child: Icon(Icons.cake, size: 36.sp, color: AppTheme.cyan))),
+          SizedBox(height: 24.h),
+          Text("AGE", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+          SizedBox(height: 8.h),
+          Text("年龄", style: AppTheme.h1()),
+          SizedBox(height: 8.h),
+          Text("影响跌倒风险阈值判定", style: AppTheme.body()),
+          SizedBox(height: 32.h),
+          Text("${_profile.age}", style: AppTheme.mono(72, AppTheme.cyan)),
+          SizedBox(height: 4.h),
+          Text("YEARS OLD", style: AppTheme.caption()),
+          SizedBox(height: 16.h),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(activeTrackColor: AppTheme.cyan, thumbColor: AppTheme.cyan, trackHeight: 2, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8)),
+            child: Slider(value: _profile.age.toDouble(), min: 1, max: 120, divisions: 119, onChanged: (v) => setState(() => _profile.age = v.round())),
+          ),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text("1", style: AppTheme.caption()), Text("120", style: AppTheme.caption())]),
         ]),
-      ]),
+      ),
     );
   }
 
-  // ── Step 3: 身高体重 ──
-  Widget _stepBody(Brightness b) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.monitor_weight_rounded, size: 48.sp, color: AppTheme.accent),
-        SizedBox(height: 16.h),
-        Text("身体数据", style: AppTheme.h1(b)),
-        SizedBox(height: 8.h),
-        Text("用于精确计算跌倒时的姿态偏移",
-          style: AppTheme.body(b), textAlign: TextAlign.center),
-        SizedBox(height: 40.h),
-
-        // 身高
-        _numField("身高", _profile.heightCm, "cm", 100, 250,
-          (v) => setState(() => _profile.heightCm = v), b),
-        SizedBox(height: 20.h),
-
-        // 体重
-        _numField("体重", _profile.weightKg, "kg", 30, 200,
-          (v) => setState(() => _profile.weightKg = v), b),
-      ]),
+  // ── 身高体重 ──
+  Widget _body() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24.w),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 80.w, height: 80.w,
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.cyan.withValues(alpha: 0.2), width: 1)),
+            child: Center(child: Icon(Icons.monitor_weight, size: 36.sp, color: AppTheme.cyan))),
+          SizedBox(height: 24.h),
+          Text("PHYSICAL", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+          SizedBox(height: 8.h),
+          Text("身体数据", style: AppTheme.h1()),
+          SizedBox(height: 32.h),
+          _num("HEIGHT 身高", _profile.heightCm, "cm", 100, 250),
+          SizedBox(height: 24.h),
+          _num("WEIGHT 体重", _profile.weightKg, "kg", 30, 200),
+        ]),
+      ),
     );
   }
 
-  Widget _numField(String label, double val, String unit, double min, double max, ValueChanged<double> onChanged, Brightness b) {
+  Widget _num(String label, double val, String unit, double min, double max) {
     return Column(children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: AppTheme.h2(b)),
+        Text(label, style: AppTheme.caption()),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12.r),
-            color: AppTheme.accent.withValues(alpha: 0.1),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white.withValues(alpha: 0.06))),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            GestureDetector(
-              onTap: () { if (val > min) onChanged(val - 1); },
-              child: Icon(Icons.remove, size: 20.sp, color: AppTheme.accent)),
-            SizedBox(width: 12.w),
-            Text(val.toStringAsFixed(0), style: AppTheme.mono(22, AppTheme.accent)),
+            GestureDetector(onTap: () { if (val > min) setState(() => val == _profile.heightCm ? _profile.heightCm -= 1 : _profile.weightKg -= 1); }, child: Icon(Icons.remove, size: 18.sp, color: AppTheme.textSecondary)),
+            SizedBox(width: 16.w),
+            Text(val.toStringAsFixed(0), style: AppTheme.mono(24, AppTheme.cyan)),
             SizedBox(width: 4.w),
-            Text(unit, style: AppTheme.caption(b)),
-            SizedBox(width: 12.w),
-            GestureDetector(
-              onTap: () { if (val < max) onChanged(val + 1); },
-              child: Icon(Icons.add, size: 20.sp, color: AppTheme.accent)),
+            Text(unit, style: AppTheme.caption()),
+            SizedBox(width: 16.w),
+            GestureDetector(onTap: () { if (val < max) setState(() => val == _profile.heightCm ? _profile.heightCm += 1 : _profile.weightKg += 1); }, child: Icon(Icons.add, size: 18.sp, color: AppTheme.textSecondary)),
           ]),
         ),
       ]),
       SizedBox(height: 8.h),
       SliderTheme(
-        data: SliderTheme.of(context).copyWith(activeTrackColor: AppTheme.accent, thumbColor: AppTheme.accent, trackHeight: 4),
-        child: Slider(value: val, min: min, max: max, onChanged: onChanged),
+        data: SliderTheme.of(context).copyWith(activeTrackColor: AppTheme.cyan, thumbColor: AppTheme.cyan, trackHeight: 2, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6)),
+        child: Slider(value: val, min: min, max: max, onChanged: (v) => setState(() { if (val == _profile.heightCm) _profile.heightCm = v; else _profile.weightKg = v; })),
       ),
     ]);
   }
 
-  // ── Step 4: 确认 ──
-  Widget _stepConfirm(Brightness b) {
-    final charLabel = _profile.character == AvatarCharacter.male ? "男性"
-        : _profile.character == AvatarCharacter.female ? "女性" : "儿童";
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.check_circle_rounded, size: 64.sp, color: AppTheme.green),
-        SizedBox(height: 16.h),
-        Text("确认信息", style: AppTheme.h1(b)),
-        SizedBox(height: 8.h),
-        Text("以下数据将用于跌倒检测", style: AppTheme.body(b)),
-        SizedBox(height: 32.h),
-
-        GlassCard(
-          child: Column(children: [
-            _infoRow("性别", charLabel, Icons.person, b),
-            const Divider(height: 1),
-            _infoRow("年龄", "${_profile.age} 岁", Icons.cake, b),
-            const Divider(height: 1),
-            _infoRow("身高", "${_profile.heightCm.toInt()} cm", Icons.height, b),
-            const Divider(height: 1),
-            _infoRow("体重", "${_profile.weightKg.toInt()} kg", Icons.monitor_weight, b),
-          ]),
-        ),
-      ]),
-    );
-  }
-
-  Widget _infoRow(String label, String value, IconData ic, Brightness b) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 12.h),
-      child: Row(children: [
-        Icon(ic, size: 20.sp, color: AppTheme.accent),
-        SizedBox(width: 12.w),
-        Text(label, style: AppTheme.body(b)),
-        const Spacer(),
-        Text(value, style: AppTheme.h2(b).copyWith(color: AppTheme.accent)),
-      ]),
-    );
-  }
-
-  // ── 底部按钮 ──
-  Widget _bottomBar(Brightness b) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 8.h),
-      child: Row(children: [
-        if (_step > 0)
-          GestureDetector(
-            onTap: () => _pageCtrl.previousPage(duration: 300.ms, curve: Curves.easeOut),
-            child: Container(
-              padding: EdgeInsets.all(12.w),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.cardBg(b),
-                border: Border.all(color: AppTheme.divider(b))),
-              child: Icon(Icons.arrow_back_rounded, color: AppTheme.textDim(b))),
-          ),
-        const Spacer(),
-        GestureDetector(
-          onTap: () {
-            if (_step < 3) {
-              _pageCtrl.nextPage(duration: 300.ms, curve: Curves.easeOut);
-            } else {
-              widget.onComplete();
-            }
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 14.h),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28.r),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF007AFF), Color(0xFF5856D6)]),
-              boxShadow: [
-                BoxShadow(color: AppTheme.accent.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(_step < 3 ? "下一步" : "开始监护",
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-              SizedBox(width: 6.w),
-              Icon(_step < 3 ? Icons.arrow_forward : Icons.check, color: Colors.white, size: 20.sp),
+  // ── 确认 ──
+  Widget _confirm() {
+    final cLabel = _profile.character == AvatarCharacter.male ? "MALE" : _profile.character == AvatarCharacter.female ? "FEMALE" : "CHILD";
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24.w),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 80.w, height: 80.w,
+            decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [AppTheme.cyan, AppTheme.green])),
+            child: const Icon(Icons.check, size: 40, color: Colors.black)),
+          SizedBox(height: 24.h),
+          Text("CONFIRM", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+          SizedBox(height: 8.h),
+          Text("确认档案", style: AppTheme.h1()),
+          SizedBox(height: 32.h),
+          GlassCard(
+            child: Column(children: [
+              Row(children: [
+                const Icon(Icons.person, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
+                Text("身份", style: AppTheme.body()), const Spacer(),
+                Text(cLabel, style: AppTheme.mono(14, AppTheme.cyan)),
+              ]),
+              const Divider(height: 20, color: Color(0x1AFFFFFF)),
+              Row(children: [
+                const Icon(Icons.cake, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
+                Text("年龄", style: AppTheme.body()), const Spacer(),
+                Text("${_profile.age} YRS", style: AppTheme.mono(14, AppTheme.cyan)),
+              ]),
+              const Divider(height: 20, color: Color(0x1AFFFFFF)),
+              Row(children: [
+                const Icon(Icons.height, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
+                Text("身高", style: AppTheme.body()), const Spacer(),
+                Text("${_profile.heightCm.toInt()} CM", style: AppTheme.mono(14, AppTheme.cyan)),
+              ]),
+              const Divider(height: 20, color: Color(0x1AFFFFFF)),
+              Row(children: [
+                const Icon(Icons.monitor_weight, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
+                Text("体重", style: AppTheme.body()), const Spacer(),
+                Text("${_profile.weightKg.toInt()} KG", style: AppTheme.mono(14, AppTheme.cyan)),
+              ]),
             ]),
           ),
-        ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── 进度条 ──
+class _ProgressBar extends StatelessWidget {
+  final int step;
+  const _ProgressBar({required this.step});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 4.h),
+      child: Row(children: [
+        _Dot(step >= 0), const _Line(),
+        _Dot(step >= 1), const _Line(),
+        _Dot(step >= 2), const _Line(),
+        _Dot(step >= 3),
       ]),
     );
   }
 }
 
-// ── 复用 GlassCard ──
-class GlassCard extends StatelessWidget {
-  final Widget child;
-  const GlassCard({super.key, required this.child});
-
+class _Dot extends StatelessWidget {
+  final bool active;
+  const _Dot(this.active);
   @override
   Widget build(BuildContext context) {
-    final b = Theme.of(context).brightness;
-    return Container(
-      padding: EdgeInsets.all(16),
+    return AnimatedContainer(
+      duration: 300.ms,
+      width: active ? 12.w : 6.w, height: 6.w,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        color: AppTheme.cardBg(b),
-        border: Border.all(color: AppTheme.divider(b), width: 0.5),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 4)),
-        ],
+        shape: BoxShape.circle,
+        color: active ? AppTheme.cyan : Colors.white.withValues(alpha: 0.1)),
+    );
+  }
+}
+
+class _Line extends StatelessWidget {
+  const _Line();
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(child: Container(height: 1, color: Colors.white.withValues(alpha: 0.1)));
+  }
+}
+
+// ── 底部按钮 ──
+class _Bottom extends StatelessWidget {
+  const _Bottom();
+  @override
+  Widget build(BuildContext context) {
+    final state = context.findAncestorStateOfType<_ProfilePageState>();
+    if (state == null) return const SizedBox.shrink();
+    final isLast = state._step == 3;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 12.h),
+      child: GestureDetector(
+        onTap: () {
+          if (isLast) {
+            state.widget.onComplete(state._profile);
+          } else {
+            state._pageCtrl.nextPage(duration: 400.ms, curve: Curves.easeOutCubic);
+          }
+        },
+        child: Container(
+          height: 52.h,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(colors: [AppTheme.cyan, Color(0xFF0078D4)]),
+            boxShadow: [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 4))],
+          ),
+          child: Center(
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(isLast ? "START MONITORING" : "NEXT", style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1)),
+              SizedBox(width: 8.w),
+              Icon(isLast ? Icons.play_arrow : Icons.arrow_forward, color: Colors.black, size: 20.sp),
+            ]),
+          ),
+        ),
       ),
-      child: child,
     );
   }
 }

@@ -1,4 +1,4 @@
-/// 3D 小人姿态页
+/// 数字孪生姿态页 — Med-Tech 暗色
 library;
 
 import 'package:flutter/material.dart';
@@ -6,15 +6,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_painter.dart';
-import '../widgets/model_avatar.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/model_avatar.dart';
 
 class AvatarPage extends StatelessWidget {
   final double theta, phi, vDeltaPhi, hhadm, fallProbability;
   final String mode, status;
   final double time;
   final AvatarCharacter character;
-  final ValueChanged<AvatarCharacter>? onCharacterChanged;
 
   const AvatarPage({
     super.key,
@@ -22,192 +21,179 @@ class AvatarPage extends StatelessWidget {
     required this.hhadm, required this.fallProbability,
     required this.mode, required this.status, required this.time,
     this.character = AvatarCharacter.male,
-    this.onCharacterChanged,
   });
+
+  Color _accent() => fallProbability > 0.7 ? AppTheme.red : fallProbability > 0.3 ? AppTheme.amber : AppTheme.cyan;
 
   @override
   Widget build(BuildContext context) {
-    final b = Theme.of(context).brightness;
-    final dangerColor = fallProbability > 0.5 ? AppTheme.red
-        : fallProbability > 0.2 ? AppTheme.orange : AppTheme.teal;
+    final ac = _accent();
+    final isDanger = fallProbability > 0.7;
 
-    return Column(
-      children: [
-        _appBar(context, b, dangerColor),
-        Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Column(children: [
-              SizedBox(height: 16.h),
-              _avatarCard(b, dangerColor),
-              SizedBox(height: 16.h),
-              _dataRow(b),
-              SizedBox(height: 12.h),
-              _heightCard(b),
-              SizedBox(height: 12.h),
-              _fallRiskCard(b, dangerColor),
-              SizedBox(height: 16.h),
-            ]),
-          ),
+    return Stack(children: [
+      // 背景呼吸脉冲（跌倒>80%时触发）
+      if (isDanger)
+        Positioned.fill(
+          child: _BreathingBg(),
         ),
-      ],
-    );
-  }
 
-  Widget _appBar(BuildContext context, Brightness b, Color dc) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("NearLink 星闪", style: AppTheme.h1(b)),
-            SizedBox(height: 2.h),
-            Row(children: [
-              Container(width: 7.w, height: 7.w,
-                decoration: BoxDecoration(shape: BoxShape.circle,
-                  color: status == "connected" ? AppTheme.green
-                      : status == "simulated" ? AppTheme.orange : Colors.grey,
-                  boxShadow: status == "connected"
-                      ? [BoxShadow(color: AppTheme.green.withValues(alpha: 0.5), blurRadius: 6)]
-                      : null)),
-              SizedBox(width: 6.w),
-              Text(status == "connected" ? "华为云在线" : status == "simulated" ? "模拟模式" : "连接中...",
-                style: AppTheme.body(b)),
-            ]),
-          ]),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20.r),
-              color: dc.withValues(alpha: 0.12),
-            ),
-            child: Text(_modeText, style: AppTheme.caption(b).copyWith(color: dc, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
+      SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20.w),
+          child: Column(children: [
+            SizedBox(height: 12.h),
+            _appBar(ac),
+            SizedBox(height: 16.h),
 
-  Widget _avatarCard(Brightness b, Color dc) {
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      child: SizedBox(
-        width: double.infinity,
-        height: 320.h,
-        child: Stack(alignment: Alignment.center, children: [
-          // 背景光晕（静态，无 AnimatedBuilder）
-          Positioned(
-            bottom: 20.h,
-            child: Container(
-              width: 150.w, height: 15.h,
-              decoration: BoxDecoration(
-                boxShadow: [BoxShadow(
-                  color: dc.withValues(alpha: 0.15),
-                  blurRadius: 30, spreadRadius: 8)]),
-            ),
-          ),
-          ModelAvatar(
-            theta: theta, phi: phi, fallProbability: fallProbability,
-            mode: mode, size: 280.w, character: character,
-          ),
-          Positioned(
-            top: 10.h,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10.r),
-                color: dc.withValues(alpha: 0.1)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.person, size: 12.sp, color: dc),
-                SizedBox(width: 4.w),
-                Text("实时姿态", style: AppTheme.caption(b).copyWith(color: dc)),
+            // ── 3D 数字孪生 ──
+            GlassCard(
+              padding: EdgeInsets.zero,
+              borderColor: ac.withValues(alpha: 0.15),
+              child: SizedBox(
+                width: double.infinity, height: 320.h,
+                child: Stack(alignment: Alignment.center, children: [
+                  Positioned(bottom: 20.h,
+                    child: Container(width: 120.w, height: 12.h,
+                      decoration: BoxDecoration(boxShadow: [BoxShadow(color: ac.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 12)]))),
+                  ModelAvatar(theta: theta, phi: phi, fallProbability: fallProbability, mode: mode, size: 280.w, character: character),
+                  Positioned(top: 10.h,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8.r), border: Border.all(color: ac.withValues(alpha: 0.2))),
+                      child: Text(status.toUpperCase(), style: AppTheme.caption().copyWith(color: ac))),
+                  ),
+                ]),
+              ),
+            ).animate().fadeIn(duration: 500.ms),
+
+            SizedBox(height: 16.h),
+
+            // ── 姿态数据 ──
+            GlassCard(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
+              child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                _num("θ 俯仰", theta.toStringAsFixed(1), "°", AppTheme.cyan, Icons.height),
+                _num("φ 转向", (phi % 360).toStringAsFixed(0), "°", const Color(0xFF7C4DFF), Icons.explore),
+                _num("vΔΦ", vDeltaPhi.toStringAsFixed(1), "/s", AppTheme.amber, Icons.speed),
               ]),
-            ),
-          ),
-        ]),
+            ).animate().fadeIn(delay: 100.ms),
+
+            SizedBox(height: 12.h),
+
+            // ── HHADM 高度 ──
+            GlassCard(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+              child: Row(children: [
+                Container(padding: EdgeInsets.all(8.w), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.green.withValues(alpha: 0.2))),
+                  child: const Icon(Icons.height, size: 18, color: AppTheme.green)),
+                SizedBox(width: 12.w),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("HHADM", style: AppTheme.caption().copyWith(letterSpacing: 2)),
+                  SizedBox(height: 2.h),
+                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text(hhadm.toStringAsFixed(0), style: AppTheme.mono(24, AppTheme.green)),
+                    SizedBox(width: 4.w),
+                    Padding(padding: EdgeInsets.only(bottom: 4.h), child: Text("cm", style: AppTheme.caption()))]),
+                ]),
+              ]),
+            ).animate().fadeIn(delay: 150.ms),
+
+            SizedBox(height: 12.h),
+
+            // ── 跌倒风险 ──
+            GlassCard(
+              borderColor: ac.withValues(alpha: 0.15),
+              child: Column(children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text("FALL RISK", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+                  Text("${(fallProbability * 100).toInt()}%", style: AppTheme.mono(28, ac)),
+                ]),
+                SizedBox(height: 8.h),
+                ClipRRect(borderRadius: BorderRadius.circular(4.r),
+                  child: LinearProgressIndicator(value: fallProbability, minHeight: 6.h, backgroundColor: ac.withValues(alpha: 0.08), valueColor: AlwaysStoppedAnimation(ac))),
+                SizedBox(height: 8.h),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text("NORMAL", style: AppTheme.caption().copyWith(color: fallProbability < 0.25 ? AppTheme.cyan : AppTheme.textTertiary)),
+                  Text("WARNING", style: AppTheme.caption().copyWith(color: fallProbability >= 0.25 && fallProbability < 0.5 ? AppTheme.amber : AppTheme.textTertiary)),
+                  Text("DANGER", style: AppTheme.caption().copyWith(color: fallProbability >= 0.5 ? AppTheme.red : AppTheme.textTertiary)),
+                ]),
+              ]),
+            ).animate().fadeIn(delay: 200.ms),
+
+            SizedBox(height: 20.h),
+          ]),
+        ),
       ),
-    ).animate().fadeIn(duration: 400.ms);
+    ]);
   }
 
-  Widget _dataRow(Brightness b) {
-    return GlassCard(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 14.h),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-        _num(Icons.height_rounded, "俯仰角 θ", theta.toStringAsFixed(1), "°", AppTheme.accent, b),
-        Container(width: 0.5, height: 35.h, color: AppTheme.divider(b)),
-        _num(Icons.explore_rounded, "转向角 φ", (phi % 360).toStringAsFixed(0), "°", const Color(0xFF5856D6), b),
-        Container(width: 0.5, height: 35.h, color: AppTheme.divider(b)),
-        _num(Icons.speed_rounded, "速率 vΔΦ", vDeltaPhi.toStringAsFixed(1), "/s", AppTheme.orange, b),
+  Widget _appBar(Color ac) {
+    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text("DIGITAL TWIN", style: AppTheme.caption().copyWith(letterSpacing: 3)),
+        SizedBox(height: 4.h),
+        Text("数字孪生", style: AppTheme.h1()),
+        SizedBox(height: 2.h),
+        Row(children: [
+          Container(width: 6.w, height: 6.w,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: status == "connected" ? AppTheme.green : AppTheme.amber,
+              boxShadow: [BoxShadow(color: (status == "connected" ? AppTheme.green : AppTheme.amber).withValues(alpha: 0.5), blurRadius: 6)])),
+          SizedBox(width: 6.w),
+          Text(status == "connected" ? "LIVE" : "SIM", style: AppTheme.caption()),
+        ]),
       ]),
-    ).animate().fadeIn(delay: 100.ms, duration: 400.ms);
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12.r), border: Border.all(color: ac.withValues(alpha: 0.2))),
+        child: Text(_modeText.toUpperCase(), style: AppTheme.caption().copyWith(color: ac, fontWeight: FontWeight.w600)),
+      ),
+    ]);
   }
 
-  Widget _num(IconData ic, String label, String val, String unit, Color c, Brightness b) {
+  Widget _num(String l, String v, String u, Color c, IconData ic) {
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(ic, size: 14.sp, color: c.withValues(alpha: 0.7)),
+      Icon(ic, size: 14.sp, color: c.withValues(alpha: 0.6)),
       SizedBox(height: 4.h),
-      Text(label, style: AppTheme.caption(b)),
+      Text(l, style: AppTheme.caption()),
       SizedBox(height: 2.h),
       Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text(val, style: AppTheme.mono(22, c)),
+        Text(v, style: AppTheme.mono(20, c)),
         SizedBox(width: 2.w),
-        Padding(padding: EdgeInsets.only(bottom: 3.h), child: Text(unit, style: AppTheme.caption(b).copyWith(color: c))),
+        Padding(padding: EdgeInsets.only(bottom: 3.h), child: Text(u, style: AppTheme.caption().copyWith(color: c))),
       ]),
     ]);
   }
 
-  Widget _heightCard(Brightness b) {
-    return GlassCard(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-      child: Row(children: [
-        Container(padding: EdgeInsets.all(7.w), decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.green.withValues(alpha: 0.12)), child: Icon(Icons.height_rounded, color: AppTheme.green, size: 18.sp)),
-        SizedBox(width: 12.w),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("胸部距地高度", style: AppTheme.caption(b)),
-          SizedBox(height: 2.h),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(hhadm.toStringAsFixed(0), style: AppTheme.mono(22, AppTheme.green)),
-            SizedBox(width: 3.w),
-            Padding(padding: EdgeInsets.only(bottom: 3.h), child: Text("cm", style: AppTheme.caption(b).copyWith(color: AppTheme.green))),
-          ]),
-        ]),
-        const Spacer(),
-        SizedBox(width: 70.w, height: 5.h,
-          child: ClipRRect(borderRadius: BorderRadius.circular(3.r),
-            child: LinearProgressIndicator(value: (hhadm / 120).clamp(0.0, 1.0), backgroundColor: AppTheme.green.withValues(alpha: 0.12), valueColor: const AlwaysStoppedAnimation(AppTheme.green)))),
-      ]),
-    ).animate().fadeIn(delay: 200.ms, duration: 400.ms);
-  }
-
-  Widget _fallRiskCard(Brightness b, Color dc) {
-    return GlassCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [Icon(Icons.warning_amber_rounded, size: 16.sp, color: dc), SizedBox(width: 6.w), Text("跌倒风险", style: AppTheme.h2(b))]),
-          Text("${(fallProbability * 100).toInt()}%", style: AppTheme.mono(26, dc)),
-        ]),
-        SizedBox(height: 8.h),
-        ClipRRect(borderRadius: BorderRadius.circular(4.r),
-          child: LinearProgressIndicator(value: fallProbability, minHeight: 7.h, backgroundColor: dc.withValues(alpha: 0.1), valueColor: AlwaysStoppedAnimation(dc))),
-        SizedBox(height: 6.h),
-        Row(children: [
-          Expanded(child: Text("安全", textAlign: TextAlign.center, style: AppTheme.caption(b).copyWith(color: fallProbability >= 0.25 ? AppTheme.textDim(b) : AppTheme.green, fontWeight: fallProbability < 0.25 ? FontWeight.w600 : FontWeight.w400))),
-          Expanded(child: Text("注意", textAlign: TextAlign.center, style: AppTheme.caption(b).copyWith(color: fallProbability >= 0.5 ? AppTheme.textDim(b) : AppTheme.orange, fontWeight: fallProbability >= 0.25 && fallProbability < 0.5 ? FontWeight.w600 : FontWeight.w400))),
-          Expanded(child: Text("危险", textAlign: TextAlign.center, style: AppTheme.caption(b).copyWith(color: fallProbability >= 0.8 ? AppTheme.red : AppTheme.textDim(b), fontWeight: fallProbability >= 0.5 ? FontWeight.w600 : FontWeight.w400))),
-        ]),
-      ]),
-    ).animate().fadeIn(delay: 300.ms, duration: 400.ms);
-  }
-
   String get _modeText {
-    if (fallProbability > 0.7) return "跌倒警告";
-    if (fallProbability > 0.3) return "异常姿态";
-    return switch (mode) {
-      "walking" => "行走中", "bending" => "弯腰中",
-      "falling" => "正在跌倒", "fallen" => "已倒地",
-      "recovering" => "恢复中", _ => "正常站立",
-    };
+    if (fallProbability > 0.7) return "FALL DETECTED";
+    if (fallProbability > 0.3) return "ABNORMAL";
+    return switch (mode) { "walking" => "Walking", "bending" => "Bending", "falling" => "Falling", "fallen" => "Fallen", "recovering" => "Recovering", _ => "Standing" };
+  }
+}
+
+// ── 呼吸闪烁背景 ──
+class _BreathingBg extends StatefulWidget {
+  @override
+  State<_BreathingBg> createState() => _BreathingBgState();
+}
+
+class _BreathingBgState extends State<_BreathingBg> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: 1.seconds)..repeat(reverse: true);
+  }
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Container(
+        color: AppTheme.red.withValues(alpha: 0.03 + _ctrl.value * 0.06),
+      ),
+    );
   }
 }

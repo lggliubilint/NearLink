@@ -1,4 +1,4 @@
-/// Apple-style design system — 纯色 + 阴影 (无 BackdropFilter)
+/// Med-Tech 暗色医疗科技风 — 数字孪生终端设计语言
 library;
 
 import 'package:flutter/material.dart';
@@ -7,40 +7,33 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  static const accent = Color(0xFF007AFF);
-  static const green = Color(0xFF34C759);
-  static const orange = Color(0xFFFF9500);
-  static const red = Color(0xFFFF3B30);
-  static const teal = Color(0xFF5AC8FA);
+  // ── 背景色系 ──
+  static const bg = Color(0xFF0A0E21);
+  static const surface = Color(0xFF141830);
+  static const card = Color(0x1AFFFFFF); // 毛玻璃半透
 
-  static const lightBg = Color(0xFFF2F2F7);
-  static const darkBg = Color(0xFF000000);
+  // ── 荧光强调色 ──
+  static const cyan = Color(0xFF00E5FF);    // 正常
+  static const amber = Color(0xFFFFB300);   // 预警
+  static const red = Color(0xFFFF1744);     // 跌倒
+  static const green = Color(0xFF00E676);
 
-  static const lightCard = Color(0xFFFFFFFF);
-  static const darkCard = Color(0xFF1C1C1E);
+  // ── 文字色 ──
+  static const textPrimary = Color(0xFFF5F5F7);
+  static const textSecondary = Color(0x8AEBEBF5);
+  static const textTertiary = Color(0x6AEBEBF5);
 
-  // ── 字体 (充分使用 google_fonts) ──
-  static TextStyle h1(Brightness b) => GoogleFonts.inter(
-    fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -0.5,
-    color: b == Brightness.dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000));
-  static TextStyle h2(Brightness b) => GoogleFonts.inter(
-    fontSize: 22, fontWeight: FontWeight.w600,
-    color: b == Brightness.dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000));
-  static TextStyle body(Brightness b) => GoogleFonts.inter(
-    fontSize: 15, fontWeight: FontWeight.w400,
-    color: b == Brightness.dark ? const Color(0xFFEBEBF5) : const Color(0xFF3C3C43));
-  static TextStyle caption(Brightness b) => GoogleFonts.inter(
-    fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.3,
-    color: b == Brightness.dark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93));
+  // ── 字体 ──
+  static TextStyle h1() => GoogleFonts.inter(
+    fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: textPrimary);
+  static TextStyle h2() => GoogleFonts.inter(
+    fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary);
+  static TextStyle body() => GoogleFonts.inter(
+    fontSize: 14, fontWeight: FontWeight.w400, color: textSecondary, height: 1.5);
+  static TextStyle caption() => GoogleFonts.inter(
+    fontSize: 11, fontWeight: FontWeight.w500, color: textTertiary, letterSpacing: 0.5);
   static TextStyle mono(double size, Color c) => GoogleFonts.jetBrainsMono(
-    fontSize: size, fontWeight: FontWeight.w700, color: c);
+    fontSize: size, fontWeight: FontWeight.w700, color: c, letterSpacing: -0.5);
 
   static const cardRadius = 16.0;
-
-  static Color cardBg(Brightness b) => b == Brightness.dark ? darkCard : lightCard;
-  static Color pageBg(Brightness b) => b == Brightness.dark ? darkBg : lightBg;
-  static Color divider(Brightness b) =>
-      b == Brightness.dark ? const Color(0x1AFFFFFF) : const Color(0x1A000000);
-  static Color textDim(Brightness b) =>
-      b == Brightness.dark ? const Color(0xFF8E8E93) : const Color(0xFF8E8E93);
 }
