@@ -69,8 +69,9 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bg,
-      body: SafeArea(
+      backgroundColor: Colors.transparent,
+      body: AppScaffoldBackground(
+        child: SafeArea(
         child: Stack(children: [
           // 内容区
           Column(children: [
@@ -96,8 +97,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Container(
                       width: 48.w, height: 48.w,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.white.withValues(alpha: 0.05),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
                       ),
                       child: const Icon(Icons.arrow_back, color: AppTheme.textSecondary, size: 22),
                     ),
@@ -109,16 +111,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Container(
                       height: 48.h,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        gradient: const LinearGradient(colors: [AppTheme.cyan, Color(0xFF0078D4)]),
-                        boxShadow: [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 4))],
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: AppTheme.accentGradient(),
+                        boxShadow: [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.28), blurRadius: 24, offset: const Offset(0, 10))],
                       ),
                       child: Center(
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Text(_step == 3 ? "开始监护" : "下一步",
-                            style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1)),
                           SizedBox(width: 8.w),
-                          Icon(_step == 3 ? Icons.play_arrow : Icons.arrow_forward, color: Colors.black, size: 20.sp),
+                          Icon(_step == 3 ? Icons.play_arrow : Icons.arrow_forward, color: Colors.white, size: 20.sp),
                         ]),
                       ),
                     ),
@@ -128,6 +130,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ]),
+        ),
       ),
     );
   }

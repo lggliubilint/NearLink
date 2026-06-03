@@ -35,7 +35,7 @@ class NearLinkApp extends StatelessWidget {
         theme: ThemeData(
           brightness: Brightness.dark,
           useMaterial3: true,
-          scaffoldBackgroundColor: AppTheme.bg,
+          scaffoldBackgroundColor: Colors.transparent,
           colorScheme: const ColorScheme.dark(primary: AppTheme.cyan, surface: AppTheme.surface),
           appBarTheme: const AppBarTheme(elevation: 0, backgroundColor: Colors.transparent),
           navigationBarTheme: NavigationBarThemeData(
@@ -135,7 +135,9 @@ class _MainPageState extends State<MainPage> {
 
     final char = _profile?.character ?? AvatarCharacter.male;
     return Scaffold(
-      body: PageView(
+      extendBody: true,
+      body: AppScaffoldBackground(
+        child: PageView(
         controller: _pageCtrl,
         onPageChanged: (i) => setState(() => _currentPage = i),
         children: [
@@ -144,17 +146,20 @@ class _MainPageState extends State<MainPage> {
             time: _animTime, character: char),
           DashboardPage(data: _genDashData(), hhadm: _hhadm, fallProb: _fallProb),
         ],
+        ),
       ),
       bottomNavigationBar: Container(
         margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20.r), color: AppTheme.surface,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          borderRadius: BorderRadius.circular(24.r),
+          gradient: LinearGradient(colors: [Colors.white.withValues(alpha: 0.12), Colors.white.withValues(alpha: 0.045)]),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.38), blurRadius: 28, offset: const Offset(0, 14))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(24.r),
           child: NavigationBar(
-            selectedIndex: _currentPage, height: 54.h,
+            selectedIndex: _currentPage, height: 58.h, backgroundColor: Colors.transparent,
             onDestinationSelected: (i) => _pageCtrl.animateToPage(i, duration: 300.ms, curve: Curves.easeOutCubic),
             indicatorColor: AppTheme.cyan.withValues(alpha: 0.12),
             destinations: const [
