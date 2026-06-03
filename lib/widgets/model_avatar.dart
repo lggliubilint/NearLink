@@ -42,11 +42,11 @@ class ModelAvatar extends StatelessWidget {
     return _youngMaleFile;
   }
 
-  // Web 端 model_viewer_plus 有 CORS 限制无法加载本地文件，
-  // 此处自动回退到 AvatarPainter；APK 端使用本地 assets 正常。
-  String get _modelSrc => 'assets/$_modelFile';
+  // Web 用 GitHub raw URL，APK 用本地文件
+  static const _baseUrl = 'https://raw.githubusercontent.com/lggliubilint/NearLink/main/assets/';
+  String get _modelSrc => kIsWeb ? '$_baseUrl$_modelFile' : 'assets/$_modelFile';
 
-  bool get _use3D => !kIsWeb;
+  bool get _use3D => true; // 所有平台都尝试加载 3D
 
   Color get _accent => fallProbability > 0.7
       ? AppTheme.red
