@@ -134,6 +134,7 @@ class _MainPageState extends State<MainPage> {
     }
 
     final char = _profile?.character ?? AvatarCharacter.male;
+    final age = _profile?.age ?? 30;
     return Scaffold(
       extendBody: true,
       body: AppScaffoldBackground(
@@ -143,7 +144,7 @@ class _MainPageState extends State<MainPage> {
         children: [
           AvatarPage(theta: _theta, phi: _phi, vDeltaPhi: _vdp, hhadm: _hhadm,
             fallProbability: _fallProb, mode: _mode, status: _status,
-            time: _animTime, character: char),
+            time: _animTime, character: char, age: age),
           DashboardPage(data: _genDashData(), hhadm: _hhadm, fallProb: _fallProb),
         ],
         ),

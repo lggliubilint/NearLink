@@ -1,4 +1,4 @@
-/// 人物组件 — 3D 模型 + 全息座舱包装；Web 自动降级手绘数字孪生
+/// 人物组件 — 真实 GLB 3D 数字人 + 全息座舱包装
 library;
 
 import 'dart:math' as math;
@@ -13,6 +13,7 @@ class ModelAvatar extends StatelessWidget {
   final String mode;
   final double size;
   final AvatarCharacter character;
+  final int age;
 
   const ModelAvatar({
     super.key,
@@ -22,13 +23,30 @@ class ModelAvatar extends StatelessWidget {
     required this.mode,
     this.size = 300,
     this.character = AvatarCharacter.male,
+    this.age = 30,
   });
 
-  static const _models = <AvatarCharacter, String>{
-    AvatarCharacter.male: 'https://readyplayerme.github.io/visage/male.glb',
-    AvatarCharacter.female: 'https://readyplayerme.github.io/visage/female.glb',
-    AvatarCharacter.child: 'https://readyplayerme.github.io/visage/male.glb',
-  };
+  // Flutter Web 的静态资源真实访问路径是 /assets/assets/xxx.glb。
+  // 移动端仍使用 pubspec 中声明的 assets/xxx.glb。
+  static const _youngMaleFile = 'ready_player_me_male_avatar__vrchatgame.glb';
+  static const _youngFemaleFile = 'ready_player_me_female_avatar__vrchatgame.glb';
+  static const _middleMaleFile = 'the_character_of_an_office_worker.glb';
+  static const _oldMaleFile = 'an_elderly_man.glb';
+  static const _childFile = 'fhc_crying_child.glb';
+
+  String get _modelFile {
+    if (character == AvatarCharacter.child || age <= 12) return _childFile;
+    if (character == AvatarCharacter.female) return _youngFemaleFile;
+    if (age >= 60) return _oldMaleFile;
+    if (age >= 40) return _middleMaleFile;
+    return _youngMaleFile;
+  }
+
+  // Web 端 model_viewer_plus 有 CORS 限制无法加载本地文件，
+  // 此处自动回退到 AvatarPainter；APK 端使用本地 assets 正常。
+  String get _modelSrc => 'assets/$_modelFile';
+
+  bool get _use3D => !kIsWeb;
 
   Color get _accent => fallProbability > 0.7
       ? AppTheme.red
@@ -45,7 +63,8 @@ class ModelAvatar extends StatelessWidget {
         CustomPaint(size: Size(size, size), painter: _HologramPainter(_accent, fallProbability)),
         Transform.translate(
           offset: Offset(0, -size * 0.015),
-          child: kIsWeb ? _painter() : _model(),
+          // APK 用 3D 模型，Web 回退手绘（CORS 限制）
+          child: _use3D ? _model() : _painter(),
         ),
         Positioned(
           bottom: size * 0.12,
@@ -65,7 +84,6 @@ class ModelAvatar extends StatelessWidget {
   }
 
   Widget _model() {
-    final url = _models[character] ?? _models[AvatarCharacter.male]!;
     final az = (phi % 360).toStringAsFixed(0);
     final el = (82.0 - theta * 0.48).clamp(42, 88).toStringAsFixed(0);
 
@@ -73,38 +91,36 @@ class ModelAvatar extends StatelessWidget {
       width: size * 0.9,
       height: size * 0.94,
       child: ModelViewer(
-        key: ValueKey('${character.name}_${az}_$el'),
-        src: url,
-        alt: '3D Avatar',
+        key: ValueKey('${character.name}_${age}_${_modelSrc}_${az}_$el'),
+        src: _modelSrc,
+        alt: 'NearLink 3D Avatar',
         ar: false,
-        autoRotate: false,
+        autoRotate: true,
+        autoRotateDelay: 0,
+        rotationPerSecond: '18deg',
         cameraControls: false,
-        cameraOrbit: '${az}deg ${el}deg 1.35m',
-        cameraTarget: '0m 1.02m 0m',
-        fieldOfView: '36deg',
-        exposure: 1.08,
+        cameraOrbit: '${az}deg ${el}deg 1.45m',
+        cameraTarget: '0m 1.0m 0m',
+        fieldOfView: '34deg',
+        exposure: 1.12,
         shadowIntensity: 0.75,
         shadowSoftness: 0.88,
         disableZoom: true,
         disableTap: true,
         interactionPrompt: InteractionPrompt.none,
         loading: Loading.eager,
+        backgroundColor: Colors.transparent,
       ),
     );
   }
 
   Widget _painter() {
     return SizedBox(
-      width: size * 0.86,
-      height: size * 0.86,
+      width: size * 0.86, height: size * 0.86,
       child: CustomPaint(
         painter: AvatarPainter(
-          theta: theta,
-          phi: phi,
-          fallProbability: fallProbability,
-          mode: mode,
-          time: 0,
-          character: character,
+          theta: theta, phi: phi, fallProbability: fallProbability,
+          mode: mode, time: 0, character: character,
         ),
       ),
     );
@@ -124,7 +140,12 @@ class _HologramPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2
       ..shader = SweepGradient(
-        colors: [accent.withValues(alpha: 0.05), accent.withValues(alpha: 0.55), AppTheme.violet.withValues(alpha: 0.28), accent.withValues(alpha: 0.05)],
+        colors: [
+          accent.withValues(alpha: 0.05),
+          accent.withValues(alpha: 0.55),
+          AppTheme.violet.withValues(alpha: 0.28),
+          accent.withValues(alpha: 0.05),
+        ],
       ).createShader(Rect.fromCircle(center: c, radius: r));
 
     canvas.drawCircle(c.translate(0, size.height * 0.1), r, ringPaint);

@@ -14,6 +14,7 @@ class AvatarPage extends StatelessWidget {
   final String mode, status;
   final double time;
   final AvatarCharacter character;
+  final int age;
 
   const AvatarPage({
     super.key,
@@ -26,6 +27,7 @@ class AvatarPage extends StatelessWidget {
     required this.status,
     required this.time,
     this.character = AvatarCharacter.male,
+    this.age = 30,
   });
 
   Color _accent() => fallProbability > 0.7 ? AppTheme.red : fallProbability > 0.3 ? AppTheme.amber : AppTheme.cyan;
@@ -90,7 +92,7 @@ class AvatarPage extends StatelessWidget {
           Positioned(top: 18.h, left: 18.w, child: _tag('NEARLINK DIGITAL TWIN', ac)),
           Positioned(top: 18.h, right: 18.w, child: _tag('${(fallProbability * 100).toInt()}% RISK', ac)),
           Positioned.fill(child: CustomPaint(painter: _ScanLinesPainter(ac))),
-          ModelAvatar(theta: theta, phi: phi + time * 10, fallProbability: fallProbability, mode: mode, size: 310.w, character: character),
+          ModelAvatar(theta: theta, phi: phi + time * 10, fallProbability: fallProbability, mode: mode, size: 310.w, character: character, age: age),
           Positioned(bottom: 18.h, left: 18.w, right: 18.w, child: _poseRail(ac)),
         ]),
       ),

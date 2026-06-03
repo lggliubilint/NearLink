@@ -8,6 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_painter.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/model_avatar.dart';
 
 class UserProfile {
   AvatarCharacter character;
@@ -141,11 +142,14 @@ class _ProfilePageState extends State<ProfilePage> {
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(
-            width: 160.w, height: 160.w,
-            child: CustomPaint(painter: AvatarPainter(
-              theta: 8, phi: 30, mode: 'standing',
-              character: _profile.character, fallProbability: 0, time: 0)),
+          ModelAvatar(
+            theta: 8,
+            phi: 30,
+            mode: 'standing',
+            character: _profile.character,
+            age: _profile.age,
+            fallProbability: 0,
+            size: 180.w,
           ).animate().scale(duration: 500.ms, begin: const Offset(0.85, 0.85)),
           SizedBox(height: 24.h),
           Text("选择身份", style: AppTheme.h1()),
