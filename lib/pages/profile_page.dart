@@ -10,11 +10,14 @@ import '../widgets/avatar_painter.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/model_avatar.dart';
 
+enum AgeGroup { child, youth, middle, elderly }
+
 class UserProfile {
   AvatarCharacter character;
   int age;
   double heightCm;
   double weightKg;
+  bool _ageDefaultsApplied = false;
 
   UserProfile({
     this.character = AvatarCharacter.male,
@@ -22,6 +25,40 @@ class UserProfile {
     this.heightCm = 170,
     this.weightKg = 70,
   });
+
+  /// 根据年龄自动归类
+  AgeGroup get ageGroup {
+    if (age <= 12 || character == AvatarCharacter.child) return AgeGroup.child;
+    if (age < 40) return AgeGroup.youth;
+    if (age < 60) return AgeGroup.middle;
+    return AgeGroup.elderly;
+  }
+
+  String get ageGroupLabel => switch (ageGroup) {
+    AgeGroup.child   => '儿童',
+    AgeGroup.youth   => '青年',
+    AgeGroup.middle  => '中年',
+    AgeGroup.elderly => '老人',
+  };
+
+  /// 根据年龄段获取默认身高体重
+  void applyAgeDefaults() {
+    if (_ageDefaultsApplied) return;
+    switch (ageGroup) {
+      case AgeGroup.child:
+        heightCm = 120; weightKg = 25; break;
+      case AgeGroup.youth:
+        heightCm = 170; weightKg = 65; break;
+      case AgeGroup.middle:
+        heightCm = 170; weightKg = 72; break;
+      case AgeGroup.elderly:
+        heightCm = 165; weightKg = 62; break;
+    }
+    _ageDefaultsApplied = true;
+  }
+
+  /// 重置预设标记 (用户手动调整后不再覆盖)
+  void markDefaultsApplied() => _ageDefaultsApplied = true;
 
   // 根据档案计算跌倒检测灵敏度
   double get fallSensitivity {
@@ -192,6 +229,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── 年龄 ──
   Widget _age() {
+    final group = _profile.ageGroup;
+    final groupColor = switch (group) {
+      AgeGroup.child   => AppTheme.green,
+      AgeGroup.youth   => AppTheme.cyan,
+      AgeGroup.middle  => AppTheme.amber,
+      AgeGroup.elderly => AppTheme.red,
+    };
+
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -205,13 +250,24 @@ class _ProfilePageState extends State<ProfilePage> {
           SizedBox(height: 8.h),
           Text("影响跌倒风险阈值判定", style: AppTheme.body()),
           SizedBox(height: 32.h),
+          // 自动归类标签
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: groupColor.withValues(alpha: 0.3)),
+              color: groupColor.withValues(alpha: 0.08),
+            ),
+            child: Text(_profile.ageGroupLabel, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: groupColor)),
+          ),
+          SizedBox(height: 20.h),
           Text("${_profile.age}", style: AppTheme.mono(72, AppTheme.cyan)),
           SizedBox(height: 4.h),
           Text("岁", style: AppTheme.caption()),
           SizedBox(height: 16.h),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(activeTrackColor: AppTheme.cyan, thumbColor: AppTheme.cyan, trackHeight: 2, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8)),
-            child: Slider(value: _profile.age.toDouble(), min: 1, max: 120, divisions: 119, onChanged: (v) => setState(() => _profile.age = v.round())),
+            child: Slider(value: _profile.age.toDouble(), min: 1, max: 120, divisions: 119, onChanged: (v) => setState(() { _profile.age = v.round(); _profile._ageDefaultsApplied = false; })),
           ),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text("1", style: AppTheme.caption()), Text("120", style: AppTheme.caption())]),
@@ -222,6 +278,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── 身高体重 ──
   Widget _body() {
+    // 进入此页时自动应用年龄段预设值
+    _profile.applyAgeDefaults();
+
+    // 根据年龄段设定滑块范围
+    final isChild = _profile.ageGroup == AgeGroup.child;
+    final hMin = isChild ? 60.0 : 100.0;
+    final hMax = isChild ? 180.0 : 250.0;
+    final wMin = isChild ? 10.0 : 30.0;
+    final wMax = isChild ? 100.0 : 200.0;
+
+    // 钳位到合法范围（切换年龄段时可能出现值越界）
+    _profile.heightCm = _profile.heightCm.clamp(hMin, hMax);
+    _profile.weightKg = _profile.weightKg.clamp(wMin, wMax);
+
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -231,11 +301,22 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.cyan.withValues(alpha: 0.2), width: 1)),
             child: Center(child: Icon(Icons.monitor_weight, size: 36.sp, color: AppTheme.cyan))),
           SizedBox(height: 24.h),
-          Text("身体数据", style: AppTheme.h1()),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text("身体数据", style: AppTheme.h1()),
+            SizedBox(width: 10.w),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.cyan.withValues(alpha: 0.2)),
+              ),
+              child: Text("${_profile.ageGroupLabel}预设", style: AppTheme.caption().copyWith(color: AppTheme.cyan)),
+            ),
+          ]),
           SizedBox(height: 32.h),
-          _num("身高", _profile.heightCm, "cm", 100, 250),
+          _num("身高", _profile.heightCm, "cm", hMin, hMax),
           SizedBox(height: 24.h),
-          _num("体重", _profile.weightKg, "kg", 30, 200),
+          _num("体重", _profile.weightKg, "kg", wMin, wMax),
         ]),
       ),
     );

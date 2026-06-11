@@ -27,4 +27,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/
+    - assets/ready_player_me_female_avatar__vrchatgame.glb
+    - assets/ready_player_me_male_avatar_nearlink_animated.glb
+    - assets/the_character_of_an_office_worker.glb
+    - assets/an_elderly_man.glb
+    - assets/fhc_crying_child.glb

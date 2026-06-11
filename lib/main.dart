@@ -62,6 +62,9 @@ class _MainPageState extends State<MainPage> {
   final _alert = AlertService();
 
   double _theta = 8, _phi = 0, _vdp = 1, _hhadm = 100, _fallProb = 0;
+  double _probWalking = 1.0, _probBending = 0.0, _probRecovery = 0.0;
+  int _classId = 0;
+  String _className = 'walking';
   String _mode = "standing", _status = "connecting";
   UserProfile? _profile;
   bool _profileDone = false;
@@ -94,6 +97,11 @@ class _MainPageState extends State<MainPage> {
         _vdp = (f["v_delta_phi"] as num?)?.toDouble() ?? _vdp;
         _hhadm = (f["hhadm"] as num?)?.toDouble() ?? _hhadm;
         _fallProb = (f["fall_probability"] as num?)?.toDouble() ?? _fallProb;
+        _probWalking = (f["prob_walking"] as num?)?.toDouble() ?? _probWalking;
+        _probBending = (f["prob_bending"] as num?)?.toDouble() ?? _probBending;
+        _probRecovery = (f["prob_recovery"] as num?)?.toDouble() ?? _probRecovery;
+        _classId = (f["class_id"] as num?)?.toInt() ?? _classId;
+        _className = f["class_name"] as String? ?? _className;
         _mode = f["mode"] as String? ?? _mode;
       }
     });
@@ -107,14 +115,38 @@ class _MainPageState extends State<MainPage> {
 
   void _genSim() {
     final t = _simFrame, p = t % 8;
-    double th = 8, ph = _phi, v = 1, hh = 100, fp = 0;
-    String md = "standing";
-    if (p < 3) { md = "walking"; th = 8 + 3 * math.sin(t * 2); ph = (t * 15) % 360; v = 1.5; fp = 0.02; }
-    else if (p < 4) { final x = p - 3; md = "bending"; th = 8 + x * 35; v = 3 + x * 2; hh = 100 - x * 10; fp = 0.1 + x * 0.15; }
-    else if (p < 5) { final x = p - 4; md = "falling"; th = 8 + x * 55; v = 5 + x * 10; hh = 100 - x * 75; fp = 0.3 + x * 0.7; }
-    else if (p < 6.5) { md = "fallen"; th = 63; ph += 0.3; hh = 20; fp = 0.95; }
-    else { final x = (p - 6.5) / 1.5; md = "recovering"; th = 63 - x * 55; hh = 20 + x * 80; fp = 0.95 - x * 0.9; }
-    if (mounted) setState(() { _theta = th; _phi = ph % 360; _vdp = v; _hhadm = hh; _fallProb = fp; _mode = md; });
+    double th = 8, ph = _phi, v = 1, hh = 100;
+    double pw = 1.0, pb = 0.0, pf = 0.0, pr = 0.0;
+    int cid = 0;
+    String cn = 'walking', md = "standing";
+    if (p < 3) {
+      md = "walking"; th = 8 + 3 * math.sin(t * 2); ph = (t * 15) % 360; v = 1.5;
+      pw = 0.85; pb = 0.05; pf = 0.02; pr = 0.08; cid = 0; cn = 'walking';
+    }
+    else if (p < 4) {
+      final x = p - 3; md = "bending"; th = 8 + x * 35; v = 3 + x * 2; hh = 100 - x * 10;
+      pw = 0.2 - x * 0.15; pb = 0.6 + x * 0.3; pf = 0.1 + x * 0.15; pr = 0.1 - x * 0.05;
+      cid = 1; cn = 'bending';
+    }
+    else if (p < 5) {
+      final x = p - 4; md = "falling"; th = 8 + x * 55; v = 5 + x * 10; hh = 100 - x * 75;
+      pw = 0.05; pb = 0.1 - x * 0.08; pf = 0.3 + x * 0.7; pr = 0.05;
+      cid = 2; cn = 'fall';
+    }
+    else if (p < 6.5) {
+      md = "fallen"; th = 63; ph += 0.3; hh = 20;
+      pw = 0.02; pb = 0.03; pf = 0.92; pr = 0.03; cid = 2; cn = 'fall';
+    }
+    else {
+      final x = (p - 6.5) / 1.5; md = "recovering"; th = 63 - x * 55; hh = 20 + x * 80;
+      pw = 0.05 + x * 0.15; pb = 0.05; pf = 0.9 - x * 0.85; pr = 0.0 + x * 0.85;
+      cid = 3; cn = 'recovery';
+    }
+    if (mounted) setState(() {
+      _theta = th; _phi = ph % 360; _vdp = v; _hhadm = hh;
+      _fallProb = pf; _probWalking = pw; _probBending = pb; _probRecovery = pr;
+      _classId = cid; _className = cn; _mode = md;
+    });
     _checkAlert();
   }
 
@@ -145,7 +177,16 @@ class _MainPageState extends State<MainPage> {
           AvatarPage(theta: _theta, phi: _phi, vDeltaPhi: _vdp, hhadm: _hhadm,
             fallProbability: _fallProb, mode: _mode, status: _status,
             time: _animTime, character: char, age: age),
-          DashboardPage(data: _genDashData(), hhadm: _hhadm, fallProb: _fallProb),
+          DashboardPage(
+            data: _genDashData(),
+            hhadm: _hhadm,
+            fallProb: _fallProb,
+            probWalking: _probWalking,
+            probBending: _probBending,
+            probRecovery: _probRecovery,
+            classId: _classId,
+            className: _className,
+          ),
         ],
         ),
       ),

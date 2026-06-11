@@ -92,7 +92,7 @@ class AvatarPage extends StatelessWidget {
           Positioned(top: 18.h, left: 18.w, child: _tag('NEARLINK DIGITAL TWIN', ac)),
           Positioned(top: 18.h, right: 18.w, child: _tag('${(fallProbability * 100).toInt()}% RISK', ac)),
           Positioned.fill(child: CustomPaint(painter: _ScanLinesPainter(ac))),
-          ModelAvatar(theta: theta, phi: phi + time * 10, fallProbability: fallProbability, mode: mode, size: 310.w, character: character, age: age),
+          ModelAvatar(theta: theta, phi: phi, fallProbability: fallProbability, mode: mode, size: 310.w, character: character, age: age),
           Positioned(bottom: 18.h, left: 18.w, right: 18.w, child: _poseRail(ac)),
         ]),
       ),

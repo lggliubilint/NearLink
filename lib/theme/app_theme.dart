@@ -17,6 +17,7 @@ class AppTheme {
   static const blue = Color(0xFF3478FF);
   static const violet = Color(0xFF8B5CFF);
   static const amber = Color(0xFFFFC247);
+  static const orange = Color(0xFFFF8C3D);
   static const red = Color(0xFFFF3864);
   static const green = Color(0xFF2DFFB3);
 

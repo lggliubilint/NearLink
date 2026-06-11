@@ -2,7 +2,6 @@
 library;
 
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import '../theme/app_theme.dart';
@@ -26,25 +25,19 @@ class ModelAvatar extends StatelessWidget {
     this.age = 30,
   });
 
-  // Flutter Web 的静态资源真实访问路径是 /assets/assets/xxx.glb。
-  // 移动端仍使用 pubspec 中声明的 assets/xxx.glb。
-  static const _youngMaleFile = 'ready_player_me_male_avatar__vrchatgame.glb';
-  static const _youngFemaleFile = 'ready_player_me_female_avatar__vrchatgame.glb';
-  static const _middleMaleFile = 'the_character_of_an_office_worker.glb';
-  static const _oldMaleFile = 'an_elderly_man.glb';
-  static const _childFile = 'fhc_crying_child.glb';
+  static const _youngMaleModel = 'assets/ready_player_me_male_avatar_nearlink_animated.glb';
+  static const _youngFemaleModel = 'assets/ready_player_me_female_avatar__vrchatgame.glb';
+  static const _middleMaleModel = 'assets/the_character_of_an_office_worker.glb';
+  static const _oldMaleModel = 'assets/an_elderly_man.glb';
+  static const _childModel = 'assets/fhc_crying_child.glb';
 
-  String get _modelFile {
-    if (character == AvatarCharacter.child || age <= 12) return _childFile;
-    if (character == AvatarCharacter.female) return _youngFemaleFile;
-    if (age >= 60) return _oldMaleFile;
-    if (age >= 40) return _middleMaleFile;
-    return _youngMaleFile;
+  String get _modelPath {
+    if (character == AvatarCharacter.child || age <= 12) return _childModel;
+    if (character == AvatarCharacter.female) return _youngFemaleModel;
+    if (age >= 60) return _oldMaleModel;
+    if (age >= 40) return _middleMaleModel;
+    return _youngMaleModel;
   }
-
-  // APK 用本地文件；Web 端在 GLB 成功推送到 GitHub 前先用手绘
-  String get _modelSrc => 'assets/$_modelFile';
-  bool get _use3D => !kIsWeb;
 
   Color get _accent => fallProbability > 0.7
       ? AppTheme.red
@@ -61,8 +54,8 @@ class ModelAvatar extends StatelessWidget {
         CustomPaint(size: Size(size, size), painter: _HologramPainter(_accent, fallProbability)),
         Transform.translate(
           offset: Offset(0, -size * 0.015),
-          // APK 用 3D 模型，Web 回退手绘（CORS 限制）
-          child: _use3D ? _model() : _painter(),
+          // 关键修复：Web/Chrome 也直接加载 GLB，不再回退到手绘 AvatarPainter。
+          child: _model(),
         ),
         Positioned(
           bottom: size * 0.12,
@@ -81,25 +74,38 @@ class ModelAvatar extends StatelessWidget {
     );
   }
 
+  String get _animationName {
+    final m = mode.toLowerCase();
+    if (m == 'standing' || m == 'stand' || m == 'normal') return 'Idle';
+    if (m.contains('walk')) return 'Walk';
+    if (m.contains('bend')) return 'Bend';
+    if (m.contains('recover') || m.contains('recovery')) return 'Recover';
+    if (m.contains('fall')) return 'Fall';
+    return 'Idle';
+  }
+
   Widget _model() {
     final az = (phi % 360).toStringAsFixed(0);
-    final el = (82.0 - theta * 0.48).clamp(42, 88).toStringAsFixed(0);
+    // 保持 UI 布局不动，只修正 3D 相机：距离拉远，避免模型只剩一个点或被裁掉。
+    final el = (76.0 - theta * 0.28).clamp(50, 82).toStringAsFixed(0);
+    final anim = _animationName;
 
     return SizedBox(
       width: size * 0.9,
       height: size * 0.94,
       child: ModelViewer(
-        key: ValueKey('${character.name}_${age}_${_modelSrc}_${az}_$el'),
-        src: _modelSrc,
+        // 只在人物/动作切换时重建，不能把实时角度放进 key，否则每帧都会重新加载 GLB。
+        key: ValueKey('${character.name}_${age}_${_modelPath}_$anim'),
+        src: _modelPath,
         alt: 'NearLink 3D Avatar',
         ar: false,
-        autoRotate: true,
-        autoRotateDelay: 0,
-        rotationPerSecond: '18deg',
+        autoPlay: true,
+        animationName: anim,
+        autoRotate: false,
         cameraControls: false,
-        cameraOrbit: '${az}deg ${el}deg 1.45m',
-        cameraTarget: '0m 1.0m 0m',
-        fieldOfView: '34deg',
+        cameraOrbit: '${az}deg ${el}deg 3.15m',
+        cameraTarget: '0m 0.78m 0m',
+        fieldOfView: '40deg',
         exposure: 1.12,
         shadowIntensity: 0.75,
         shadowSoftness: 0.88,
@@ -108,18 +114,6 @@ class ModelAvatar extends StatelessWidget {
         interactionPrompt: InteractionPrompt.none,
         loading: Loading.eager,
         backgroundColor: Colors.transparent,
-      ),
-    );
-  }
-
-  Widget _painter() {
-    return SizedBox(
-      width: size * 0.86, height: size * 0.86,
-      child: CustomPaint(
-        painter: AvatarPainter(
-          theta: theta, phi: phi, fallProbability: fallProbability,
-          mode: mode, time: 0, character: character,
-        ),
       ),
     );
   }
