@@ -1,5 +1,4 @@
-/// 个人档案页 — Med-Tech 暗色设计
-/// 配置的数据通过 UserProfile 传回 main 供整个 App 使用
+/// 个人档案页 — 身份控制风险参数，非模型
 library;
 
 import 'package:flutter/material.dart';
@@ -8,7 +7,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../theme/app_theme.dart';
 import '../widgets/avatar_painter.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/model_avatar.dart';
 
 enum AgeGroup { child, youth, middle, elderly }
 
@@ -17,22 +15,19 @@ class UserProfile {
   int age;
   double heightCm;
   double weightKg;
+  AgeGroup selectedGroup; // 用户显式选择的身份
   bool _ageDefaultsApplied = false;
 
   UserProfile({
     this.character = AvatarCharacter.male,
-    this.age = 30,
+    this.age = 28,
     this.heightCm = 170,
-    this.weightKg = 70,
+    this.weightKg = 65,
+    this.selectedGroup = AgeGroup.youth,
   });
 
-  /// 根据年龄自动归类
-  AgeGroup get ageGroup {
-    if (age <= 12 || character == AvatarCharacter.child) return AgeGroup.child;
-    if (age < 40) return AgeGroup.youth;
-    if (age < 60) return AgeGroup.middle;
-    return AgeGroup.elderly;
-  }
+  /// 直接返回用户选择的身份，不再从年龄推导
+  AgeGroup get ageGroup => selectedGroup;
 
   String get ageGroupLabel => switch (ageGroup) {
     AgeGroup.child   => '儿童',
@@ -41,34 +36,50 @@ class UserProfile {
     AgeGroup.elderly => '老人',
   };
 
-  /// 根据年龄段获取默认身高体重
+  /// 各年龄段默认年龄
+  static int defaultAgeFor(AgeGroup g) => switch (g) {
+    AgeGroup.child   => 8,
+    AgeGroup.youth   => 28,
+    AgeGroup.middle  => 50,
+    AgeGroup.elderly => 72,
+  };
+
+  /// HHADM 基准高度 (cm)
+  double get hhadmBaseline => switch (ageGroup) {
+    AgeGroup.child   => 80.0,
+    AgeGroup.youth   => 120.0,
+    AgeGroup.middle  => 110.0,
+    AgeGroup.elderly => 100.0,
+  };
+
+  /// 跌倒角度阈值 (°)
+  double get fallAngleThreshold => switch (ageGroup) {
+    AgeGroup.child   => 35.0,
+    AgeGroup.youth   => 22.0,
+    AgeGroup.middle  => 20.0,
+    AgeGroup.elderly => 16.0,
+  };
+
+  /// 风险敏感度 (0~1)
+  double get riskSensitivity => switch (ageGroup) {
+    AgeGroup.child   => 0.45,
+    AgeGroup.youth   => 0.55,
+    AgeGroup.middle  => 0.70,
+    AgeGroup.elderly => 0.90,
+  };
+
   void applyAgeDefaults() {
     if (_ageDefaultsApplied) return;
     switch (ageGroup) {
-      case AgeGroup.child:
-        heightCm = 120; weightKg = 25; break;
-      case AgeGroup.youth:
-        heightCm = 170; weightKg = 65; break;
-      case AgeGroup.middle:
-        heightCm = 170; weightKg = 72; break;
-      case AgeGroup.elderly:
-        heightCm = 165; weightKg = 62; break;
+      case AgeGroup.child:  heightCm = 120; weightKg = 25; break;
+      case AgeGroup.youth:  heightCm = 170; weightKg = 65; break;
+      case AgeGroup.middle: heightCm = 170; weightKg = 72; break;
+      case AgeGroup.elderly:heightCm = 165; weightKg = 62; break;
     }
     _ageDefaultsApplied = true;
   }
 
-  /// 重置预设标记 (用户手动调整后不再覆盖)
   void markDefaultsApplied() => _ageDefaultsApplied = true;
-
-  // 根据档案计算跌倒检测灵敏度
-  double get fallSensitivity {
-    if (age > 65) return 0.85;
-    if (age > 45) return 0.75;
-    return 0.65;
-  }
-
-  // 重心高度估计 (cm) — 用于 HHADM 参考
-  double get estimatedCenterOfMass => heightCm * 0.56;
 }
 
 class ProfilePage extends StatefulWidget {
@@ -94,7 +105,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _onNext() {
-    if (_step == 3) {
+    if (_step == 4) {
       widget.onComplete(_profile);
     } else {
       _pageCtrl.nextPage(duration: 300.ms, curve: Curves.easeOutCubic);
@@ -118,7 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: PageView(
                 controller: _pageCtrl,
                 physics: const NeverScrollableScrollPhysics(),
-                children: [_gender(), _age(), _body(), _confirm()],
+                children: [_gender(), _identity(), _age(), _body(), _confirm()],
               ),
             ),
             const SizedBox(height: 80),
@@ -155,10 +166,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: Center(
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(_step == 3 ? "开始监护" : "下一步",
+                          Text(_step == 4 ? "开始监护" : "下一步",
                             style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1)),
                           SizedBox(width: 8.w),
-                          Icon(_step == 3 ? Icons.play_arrow : Icons.arrow_forward, color: Colors.white, size: 20.sp),
+                          Icon(_step == 4 ? Icons.play_arrow : Icons.arrow_forward, color: Colors.white, size: 20.sp),
                         ]),
                       ),
                     ),
@@ -173,61 +184,113 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ── 性别 ──
+  // ── 第一步: 性别 ──
   Widget _gender() {
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ModelAvatar(
-            theta: 8,
-            phi: 30,
-            mode: 'standing',
-            character: _profile.character,
-            age: _profile.age,
-            fallProbability: 0,
-            size: 180.w,
-          ).animate().scale(duration: 500.ms, begin: const Offset(0.85, 0.85)),
-          SizedBox(height: 24.h),
           Text("选择身份", style: AppTheme.h1()),
-          SizedBox(height: 32.h),
+          SizedBox(height: 8.h),
+          Text("身份决定风险判定参数，不控制模型外观", style: AppTheme.body()),
+          SizedBox(height: 28.h),
           Row(children: [
-            _btn(AvatarCharacter.male, Icons.man, "男性"),
-            SizedBox(width: 12.w),
-            _btn(AvatarCharacter.female, Icons.woman, "女性"),
-            SizedBox(width: 12.w),
-            _btn(AvatarCharacter.child, Icons.child_care, "儿童"),
+            _genderBtn(AvatarCharacter.male, Icons.man, "男性"),
+            SizedBox(width: 10.w),
+            _genderBtn(AvatarCharacter.female, Icons.woman, "女性"),
           ]),
+          SizedBox(height: 20.h),
+          Text("下一步将选择身份类型", style: AppTheme.caption()),
         ]),
       ),
     );
   }
 
-  Widget _btn(AvatarCharacter c, IconData ic, String label) {
+  Widget _genderBtn(AvatarCharacter c, IconData ic, String label) {
     final sel = _profile.character == c;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _profile.character = c),
         child: AnimatedContainer(
           duration: 300.ms,
-          padding: EdgeInsets.symmetric(vertical: 20.h),
+          height: 120.h,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: sel ? AppTheme.cyan : Colors.white.withValues(alpha: 0.06), width: sel ? 1 : 0.5),
             color: sel ? AppTheme.cyan.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.02),
             boxShadow: sel ? [BoxShadow(color: AppTheme.cyan.withValues(alpha: 0.15), blurRadius: 16)] : null,
           ),
-          child: Column(children: [
-            Icon(ic, size: 32.sp, color: sel ? AppTheme.cyan : AppTheme.textTertiary),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(ic, size: 40.sp, color: sel ? AppTheme.cyan : AppTheme.textTertiary),
             SizedBox(height: 8.h),
-            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: sel ? AppTheme.cyan : AppTheme.textTertiary)),
+            Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: sel ? AppTheme.cyan : AppTheme.textTertiary)),
           ]),
         ),
       ),
     );
   }
 
-  // ── 年龄 ──
+  // ── 第二步: 身份类型 ──
+  Widget _identity() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24.w),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text("选择身份类型", style: AppTheme.h1()),
+          SizedBox(height: 8.h),
+          Text("决定风险判定参数体系", style: AppTheme.body()),
+          SizedBox(height: 24.h),
+          _idCard(AgeGroup.child, Icons.child_care, "儿童",
+            "HHADM 80cm", "阈值 35°", "敏感度 45%", AppTheme.green),
+          SizedBox(height: 10.h),
+          _idCard(AgeGroup.youth, Icons.person, "青年",
+            "HHADM 120cm", "阈值 22°", "敏感度 55%", AppTheme.cyan),
+          SizedBox(height: 10.h),
+          _idCard(AgeGroup.middle, Icons.person_outline, "中年",
+            "HHADM 110cm", "阈值 20°", "敏感度 70%", AppTheme.amber),
+          SizedBox(height: 10.h),
+          _idCard(AgeGroup.elderly, Icons.elderly, "老人",
+            "HHADM 100cm", "阈值 16°", "敏感度 90%", AppTheme.red),
+        ]),
+      ),
+    );
+  }
+
+  Widget _idCard(AgeGroup g, IconData ic, String label, String hh, String th, String sens, Color c) {
+    final sel = _profile.selectedGroup == g;
+    return GestureDetector(
+      onTap: () => setState(() { _profile.selectedGroup = g; _profile.age = UserProfile.defaultAgeFor(g); _profile._ageDefaultsApplied = false; }),
+      child: AnimatedContainer(
+        duration: 250.ms,
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: sel ? c : Colors.white.withValues(alpha: 0.06), width: sel ? 1.2 : 0.5),
+          color: sel ? c.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.02),
+          boxShadow: sel ? [BoxShadow(color: c.withValues(alpha: 0.12), blurRadius: 12)] : null,
+        ),
+        child: Row(children: [
+          Icon(ic, size: 28.sp, color: sel ? c : AppTheme.textTertiary),
+          SizedBox(width: 14.w),
+          Expanded(child: Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: sel ? c : AppTheme.textSecondary))),
+          Text(hh, style: AppTheme.caption().copyWith(color: sel ? c : AppTheme.textTertiary)),
+          SizedBox(width: 10.w),
+          Text(th, style: AppTheme.caption().copyWith(color: sel ? AppTheme.amber : AppTheme.textTertiary)),
+          SizedBox(width: 10.w),
+          Text(sens, style: AppTheme.caption().copyWith(color: sel ? AppTheme.red : AppTheme.textTertiary)),
+        ]),
+      ),
+    );
+  }
+
+  double _ageMin() => switch (_profile.ageGroup) {
+    AgeGroup.child => 1, AgeGroup.youth => 13, AgeGroup.middle => 35, AgeGroup.elderly => 55,
+  };
+  double _ageMax() => switch (_profile.ageGroup) {
+    AgeGroup.child => 17, AgeGroup.youth => 39, AgeGroup.middle => 65, AgeGroup.elderly => 120,
+  };
+
+  // ── 第三步: 年龄 ──
   Widget _age() {
     final group = _profile.ageGroup;
     final groupColor = switch (group) {
@@ -267,10 +330,14 @@ class _ProfilePageState extends State<ProfilePage> {
           SizedBox(height: 16.h),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(activeTrackColor: AppTheme.cyan, thumbColor: AppTheme.cyan, trackHeight: 2, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8)),
-            child: Slider(value: _profile.age.toDouble(), min: 1, max: 120, divisions: 119, onChanged: (v) => setState(() { _profile.age = v.round(); _profile._ageDefaultsApplied = false; })),
+            child: Slider(
+              value: _profile.age.toDouble(),
+              min: _ageMin(), max: _ageMax(),
+              divisions: (_ageMax() - _ageMin()).toInt(),
+              onChanged: (v) => setState(() { _profile.age = v.round(); _profile._ageDefaultsApplied = false; })),
           ),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("1", style: AppTheme.caption()), Text("120", style: AppTheme.caption())]),
+            Text("${_ageMin().toInt()}", style: AppTheme.caption()), Text("${_ageMax().toInt()}", style: AppTheme.caption())]),
         ]),
       ),
     );
@@ -350,7 +417,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── 确认 ──
   Widget _confirm() {
-    final cLabel = _profile.character == AvatarCharacter.male ? "男性" : _profile.character == AvatarCharacter.female ? "女性" : "儿童";
+    final genderLabel = _profile.character == AvatarCharacter.male ? "男性" : "女性";
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -366,8 +433,14 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Column(children: [
               Row(children: [
                 const Icon(Icons.person, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
+                Text("性别", style: AppTheme.body()), const Spacer(),
+                Text(genderLabel, style: AppTheme.mono(14, AppTheme.cyan)),
+              ]),
+              const Divider(height: 20, color: Color(0x1AFFFFFF)),
+              Row(children: [
+                const Icon(Icons.category, size: 18, color: AppTheme.cyan), SizedBox(width: 12.w),
                 Text("身份", style: AppTheme.body()), const Spacer(),
-                Text(cLabel, style: AppTheme.mono(14, AppTheme.cyan)),
+                Text(_profile.ageGroupLabel, style: AppTheme.mono(14, AppTheme.cyan)),
               ]),
               const Divider(height: 20, color: Color(0x1AFFFFFF)),
               Row(children: [
@@ -407,7 +480,8 @@ class _ProgressBar extends StatelessWidget {
         _Dot(step >= 0), const _Line(),
         _Dot(step >= 1), const _Line(),
         _Dot(step >= 2), const _Line(),
-        _Dot(step >= 3),
+        _Dot(step >= 3), const _Line(),
+        _Dot(step >= 4),
       ]),
     );
   }

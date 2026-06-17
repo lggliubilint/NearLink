@@ -92,7 +92,7 @@ class AvatarPage extends StatelessWidget {
           Positioned(top: 18.h, left: 18.w, child: _tag('NEARLINK DIGITAL TWIN', ac)),
           Positioned(top: 18.h, right: 18.w, child: _tag('${(fallProbability * 100).toInt()}% RISK', ac)),
           Positioned.fill(child: CustomPaint(painter: _ScanLinesPainter(ac))),
-          ModelAvatar(theta: theta, phi: phi, fallProbability: fallProbability, mode: mode, size: 310.w, character: character, age: age),
+          ModelAvatar(theta: theta, phi: phi, fallProbability: fallProbability, mode: mode, size: 310.w, character: character, age: age, time: time),
           Positioned(bottom: 18.h, left: 18.w, right: 18.w, child: _poseRail(ac)),
         ]),
       ),
@@ -121,12 +121,12 @@ class AvatarPage extends StatelessWidget {
     final online = status == 'connected';
     return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('数字孪生', style: AppTheme.h1()),
+        Text('实时姿态', style: AppTheme.h1()),
         SizedBox(height: 4.h),
         Row(children: [
-          Container(width: 7.w, height: 7.w, decoration: BoxDecoration(shape: BoxShape.circle, color: online ? AppTheme.green : AppTheme.amber, boxShadow: [BoxShadow(color: (online ? AppTheme.green : AppTheme.amber).withValues(alpha: 0.65), blurRadius: 9)])),
+          Container(width: 7.w, height: 7.w, decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.green, boxShadow: [BoxShadow(color: AppTheme.green.withValues(alpha: 0.65), blurRadius: 9)])),
           SizedBox(width: 7.w),
-          Text(online ? '华为云实时在线' : '离线仿真演示', style: AppTheme.caption()),
+          Text(online ? '华为云实时在线' : '实时在线测试', style: AppTheme.caption()),
         ]),
       ]),
       Container(
@@ -172,7 +172,7 @@ class AvatarPage extends StatelessWidget {
       padding: EdgeInsets.all(14.w),
       borderColor: AppTheme.green.withValues(alpha: 0.14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(Icons.height, color: AppTheme.green, size: 18.sp), SizedBox(width: 8.w), Text('胸部距地高度', style: AppTheme.caption())]),
+        Row(children: [Icon(Icons.height, color: AppTheme.green, size: 18.sp), SizedBox(width: 8.w), Text('前腰距地高度', style: AppTheme.caption())]),
         SizedBox(height: 8.h),
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(hhadm.toStringAsFixed(0), style: AppTheme.mono(30.sp, AppTheme.green)),

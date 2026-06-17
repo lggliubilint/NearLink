@@ -1,5 +1,9 @@
-/// 人物姿态画笔 — 精致版
-/// 修复: 跌倒不越界 / 行走更自然 / 五官更美观
+/// 数字孪生全息骨架 — CustomPainter 科幻风格
+///
+/// 头部: 空心光环圆环
+/// 关节: 发光圆点
+/// 骨骼: 发光线段连接
+/// 风险: LOW=青蓝 / MID=琥珀 / HIGH=红+脉冲
 library;
 
 import 'dart:math' as math;
@@ -14,292 +18,274 @@ class AvatarPainter extends CustomPainter {
   final AvatarCharacter character;
 
   AvatarPainter({
-    required this.theta, required this.phi,
-    this.fallProbability = 0.0, this.mode = "standing",
-    this.time = 0, this.character = AvatarCharacter.male,
+    required this.theta,
+    required this.phi,
+    this.fallProbability = 0.0,
+    this.mode = 'standing',
+    this.time = 0,
+    this.character = AvatarCharacter.male,
   });
+
+  // ── 风险颜色 ──
+  Color get glowColor {
+    if (fallProbability > 0.7) return const Color(0xFFFF3864); // HIGH 红
+    if (fallProbability > 0.3) return const Color(0xFFFFC247); // MID 黄
+    return const Color(0xFF12F7FF); // LOW 青蓝
+  }
+
+  bool get isHighRisk => fallProbability > 0.7;
+
+  // ── 姿态判断 ──
+  bool get isWalking => mode == 'walking';
+  bool get isBending => mode == 'bending';
+  bool get isFalling => mode == 'falling' || mode == 'fallen';
+  bool get isRecovering => mode == 'recovering';
+  bool get isStanding => !isWalking && !isBending && !isFalling && !isRecovering;
 
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.height / 280;
     final cx = size.width / 2;
-    // 跌倒时把整个画面往上移，保证人物不滑出
-    final isFalling = mode == 'falling' || mode == 'fallen';
-    final fallProgress = isFalling
-        ? (((theta - 8).clamp(0, 65) - 20) / 45).clamp(0.0, 1.0)
+
+    // 跌倒进度 (0→1): theta 偏离越大 → 身体越接近水平
+    // fall 时 theta 从 8→83, recover 时 theta 从 83→8, 共用同一个映射
+    final fallProgress = (isFalling || isRecovering)
+        ? ((theta - 8).clamp(0, 75) / 75)
         : 0.0;
-    final cy = size.height / 2 - fallProgress * 55 * scale;
+    final effectiveFall = fallProgress.clamp(0.0, 1.0);
+
+    // 跌倒时画面往上移 + 身体下沉
+    final fallLift = effectiveFall * 55 * scale;
+    final fallDrop = effectiveFall * 50 * scale;
+    final cy = size.height / 2 - fallLift;
 
     canvas.save();
     canvas.translate(cx, cy);
 
+    // 行走参数
+    final wp = time * 5.0;
+    final armSwing = isWalking ? math.sin(wp) * 14.0 : 0.0;
+    final legSwing = isWalking ? math.sin(wp + math.pi) * 10.0 : 0.0;
+    final bodyBob = isWalking ? math.sin(wp * 2).abs() * 2.5 : 0.0;
+
+    // 体型缩放 (儿童小一号)
+    final bodyScale = character == AvatarCharacter.child ? 0.65 : 1.0;
+    final bs = bodyScale;
+
+    // ── 关节坐标计算 ──
+    // 3D → 2D 投影 (简单的正交+轻微透视)
     final phiRad = phi * math.pi / 180;
     final cosP = math.cos(phiRad), sinP = math.sin(phiRad);
 
-    final bendDeg = (theta - 8.0).clamp(0, 70);
+    // 旋转角度: 弯腰最大45°, 跌倒最大90° (完全水平)
+    final bendDeg = isBending ? ((theta - 8).clamp(0, 45)) : effectiveFall * 90;
     final bendRad = bendDeg * math.pi / 180;
 
-    final isWalking = mode == 'walking';
-    final wp = time * 4.5; // 行走频率
-    final armSwing = isWalking ? math.sin(wp) * 12.0 : 0.0;
-    final legSwing = isWalking ? math.sin(wp + math.pi) * 8.0 : 0.0;
-    final bodyBob = isWalking ? math.sin(wp * 2).abs() * 3.0 : 0.0;
-    final kneeBend = fallProgress * 18.0;
-    final armReach = fallProgress * 12.0;
-    final fallSink = fallProgress * 30.0 * scale;
-
-    // 体型
-    double bw = 1.0, bh = 1.0, hs = 1.0;
-    Color pantsColor, shoeColor;
-    switch (character) {
-      case AvatarCharacter.male:
-        bw = 1.0; bh = 1.0; hs = 1.0;
-        pantsColor = const Color(0xFF2C3E50);
-        shoeColor = const Color(0xFF3D3025);
-        break;
-      case AvatarCharacter.female:
-        bw = 0.85; bh = 0.95; hs = 0.92;
-        pantsColor = const Color(0xFF6C3483);
-        shoeColor = const Color(0xFF4A2C3D);
-        break;
-      case AvatarCharacter.child:
-        bw = 0.6; bh = 0.6; hs = 1.3;
-        pantsColor = const Color(0xFF2980B9);
-        shoeColor = const Color(0xFF5DADE2);
-        break;
+    Offset proj(double x, double y, double z) {
+      final rx = x * cosP + z * sinP;
+      final rz = -x * sinP + z * cosP;
+      final ry = y - rz * 0.04;
+      return Offset(rx * scale * bs, ry * scale * bs);
     }
 
-    Offset project(double x, double y, double z) {
-      final rx = x * bw * cosP + z * sinP;
-      final rz = -x * bw * sinP + z * cosP;
-      final ry = y * bh * (1.0 - bendRad * 0.06) - rz * 0.04;
-      return Offset(rx * scale, ry * scale + fallSink);
+    // 绕X轴旋转 (躯干前倾 / 跌倒)
+    (double, double, double) rotX(double x, double y, double z) {
+      final c = math.cos(bendRad), s = math.sin(bendRad);
+      return (x, y * c - z * s, y * s + z * c);
     }
 
-    (double, double, double) joint(double x, double y, double z, String n) {
-      if (y < 2) (x, y, z) = _rotX(x, y, z, bendRad);
+    Offset J(String id, double x, double y, double z) {
+      var rx = x, ry = y, rz = z;
+      // 跌倒/恢复: 全身旋转 (不再只转上半身)
+      if (effectiveFall > 0.01) {
+        (rx, ry, rz) = rotX(rx, ry, rz);
+      } else if (y < 2) {
+        (rx, ry, rz) = rotX(rx, ry, rz); // 站立时只上半身弯曲
+      }
+      // 行走动画
       if (isWalking) {
-        switch (n) {
-          case 'lh': z -= armSwing; y -= armSwing.abs() * 0.08; break;
-          case 'rh': z += armSwing; y -= armSwing.abs() * 0.08; break;
-          case 'le': z -= armSwing * 0.4; break;
-          case 're': z += armSwing * 0.4; break;
-          case 'lft': z += legSwing; y -= bodyBob; break;
-          case 'rft': z -= legSwing; y -= bodyBob; break;
-          case 'lkn': z += legSwing * 0.4; break;
-          case 'rkn': z -= legSwing * 0.4; break;
+        switch (id) {
+          case 'lh': rz -= armSwing; ry -= armSwing.abs() * 0.08; break;
+          case 'rh': rz += armSwing; ry -= armSwing.abs() * 0.08; break;
+          case 'le': rz -= armSwing * 0.4; break;
+          case 're': rz += armSwing * 0.4; break;
+          case 'lft': rz += legSwing; ry -= bodyBob; break;
+          case 'rft': rz -= legSwing; ry -= bodyBob; break;
+          case 'lkn': rz += legSwing * 0.4; break;
+          case 'rkn': rz -= legSwing * 0.4; break;
         }
-        if (y < 0) y -= bodyBob * 0.4;
+        if (y < 0) ry -= bodyBob * 0.4;
       }
-      if (isFalling) {
-        switch (n) {
-          case 'lkn': case 'rkn': z -= kneeBend; y -= kneeBend * 0.15; break;
-          case 'lh': case 'rh': z -= armReach; y += armReach * 0.12; break;
-          case 'le': case 're': z -= armReach * 0.4; break;
-          case 'lft': case 'rft': y += fallProgress * 3; break;
+      // 跌倒: 膝盖弯曲 + 手臂前伸 (更明显的姿势)
+      if (effectiveFall > 0.1) {
+        switch (id) {
+          case 'lkn': case 'rkn': ry += effectiveFall * 24; break;
+          case 'lft': case 'rft': ry += effectiveFall * 12;  break;
+          case 'lh': case 'rh': ry -= effectiveFall * 28; break;
+          case 'le': case 're': ry -= effectiveFall * 18; break;
         }
       }
-      return (x, y, z);
+      final p = proj(rx, ry, rz);
+      return Offset(p.dx, p.dy + fallDrop);
     }
 
-    Offset p(double x, double y, double z, [String n = '']) {
-      final (jx, jy, jz) = joint(x, y, z, n);
-      return project(jx, jy, jz);
+    // 关节定义
+    final head = J('hd', 0, -92, 0);
+    final neck = J('nk', 0, -65, 0);
+    final lSh = J('ls', -18, -56, -1);
+    final rSh = J('rs', 18, -56, -1);
+    final lEl = J('le', -23, -34, -4);
+    final rEl = J('re', 23, -34, -4);
+    final lWr = J('lh', -25, -12, -3);
+    final rWr = J('rh', 25, -12, -3);
+    final midHip = J('hp', 0, 2, 0);
+    final lHi = J('lhi', -8, 2, -1);
+    final rHi = J('rhi', 8, 2, -1);
+    final lKn = J('lkn', -10, 44, -1);
+    final rKn = J('rkn', 10, 44, -1);
+    final lAn = J('lft', -10, 84, 0);
+    final rAn = J('rft', 10, 84, 0);
+
+    // ── 绘制 ──
+
+    // 脉冲强度 (HIGH 风险)
+    final pulse = isHighRisk ? 0.55 + 0.45 * math.sin(time * 6.0) : 1.0;
+    final glowAlpha = (0.6 + 0.4 * pulse).clamp(0.3, 1.0);
+
+    // 骨架线样式
+    final bonePaint = Paint()
+      ..color = glowColor.withValues(alpha: 0.7 * glowAlpha)
+      ..strokeWidth = 2.0 * scale
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final boneGlowPaint = Paint()
+      ..color = glowColor.withValues(alpha: 0.18 * glowAlpha)
+      ..strokeWidth = 6.0 * scale
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
+    final jointPaint = Paint()
+      ..color = glowColor.withValues(alpha: glowAlpha)
+      ..style = PaintingStyle.fill;
+
+    final jointGlowPaint = Paint()
+      ..color = glowColor.withValues(alpha: 0.35 * glowAlpha)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    void bone(Offset a, Offset b) {
+      if ((a - b).distance < 1) return;
+      canvas.drawLine(a, b, boneGlowPaint);
+      canvas.drawLine(a, b, bonePaint);
     }
 
-    final hd = p(0, -90 * bh, -2, 'hd');
-    final nk = p(0, -62 * bh, -2, 'nk');
-    final hp = p(0, 0, 0, 'hp');
-    final ls = p(-18 * bw, -56 * bh, -3, 'ls');
-    final rs = p(18 * bw, -56 * bh, -3, 'rs');
-    final le = p(-22 * bw, -33 * bh, -7, 'le');
-    final re = p(22 * bw, -33 * bh, -7, 're');
-    final lh = p(-24 * bw, -14 * bh, -6, 'lh');
-    final rh = p(24 * bw, -14 * bh, -6, 'rh');
-    final lhi = p(-8 * bw, 0, -2, 'lhi');
-    final rhi = p(8 * bw, 0, -2, 'rhi');
-    final lkn = p(-10 * bw, 42 * bh, -3, 'lkn');
-    final rkn = p(10 * bw, 42 * bh, -3, 'rkn');
-    final lft = p(-10 * bw, 82 * bh, -1, 'lft');
-    final rft = p(10 * bw, 82 * bh, -1, 'rft');
-
-    final topColor = _statusColor();
-    final skin = const Color(0xFFF8D5B8);
-    final skinDark = const Color(0xFFD4A878);
-    final skinLight = const Color(0xFFFDE8D5);
-    final lw = 8.0 * scale;
-    final shoeC = shoeColor;
-
-    double dist(Offset a, Offset b) => (a - b).distance;
-
-    // ── 地面阴影 ──
-    final sCx = (lft.dx + rft.dx) / 2;
-    final sCy = (lft.dy + rft.dy) / 2 + 7 * scale;
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(sCx, sCy), width: 50 * scale * bw, height: 12 * scale),
-      Paint()..color = const Color(0x14000000)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
-
-    void limb(Offset a, Offset b, Color c, [double wa = 1.0, double wb = 1.0]) {
-      final d = dist(a, b);
-      if (d < 1) return;
-      final dx = (b.dy - a.dy) / d, dy = -(b.dx - a.dx) / d;
-      final path = Path()
-        ..moveTo(a.dx + dx * lw * wa, a.dy + dy * lw * wa)
-        ..lineTo(b.dx + dx * lw * wb, b.dy + dy * lw * wb)
-        ..lineTo(b.dx - dx * lw * wb, b.dy - dy * lw * wb)
-        ..lineTo(a.dx - dx * lw * wa, a.dy - dy * lw * wa)
-        ..close();
-      canvas.drawPath(path, Paint()..color = c..style = PaintingStyle.fill);
+    void joint(Offset p, double r) {
+      canvas.drawCircle(p, r * 2.8, jointGlowPaint);
+      canvas.drawCircle(p, r, jointPaint);
     }
 
-    // ── 躯干 (圆角梯形) ──
-    final tLW = (ls - nk).distance * 0.85;
-    final tRW = (rs - nk).distance * 0.85;
-    final tBW = (lhi - hp).distance * 0.85;
-    final torso = Path()
-      ..moveTo(nk.dx - tLW, nk.dy)..lineTo(nk.dx + tRW, nk.dy)
-      ..quadraticBezierTo(hp.dx + tBW + 5 * scale, (nk.dy + hp.dy) / 2, hp.dx + tBW, hp.dy)
-      ..lineTo(hp.dx - tBW, hp.dy)
-      ..quadraticBezierTo(hp.dx - tBW - 5 * scale, (nk.dy + hp.dy) / 2, nk.dx - tLW, nk.dy)
-      ..close();
-    canvas.drawPath(torso, Paint()
-      ..shader = LinearGradient(
-        begin: const Alignment(-0.2, -1), end: const Alignment(0.2, 1),
-        colors: [topColor, topColor.withValues(alpha: 0.50)])
-        .createShader(Rect.fromPoints(nk, hp))..style = PaintingStyle.fill);
+    // ── 头部光环 ──
+    final headR = 14.0 * scale * bs;
+    // 外发光
+    canvas.drawCircle(head, headR * 1.5, Paint()
+      ..color = glowColor.withValues(alpha: 0.12 * glowAlpha)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
+    // 光环
+    canvas.drawCircle(head, headR, Paint()
+      ..color = glowColor.withValues(alpha: 0.6 * glowAlpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0 * scale);
+    // 内点
+    canvas.drawCircle(head, 3.0 * scale, jointPaint);
 
-    // ── 头部 ──
-    final headR = 17.0 * scale * hs;
-    canvas.drawCircle(hd, headR, Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.3, -0.35),
-        radius: 0.95,
-        colors: [skinLight, skin, skinDark])
-        .createShader(Rect.fromCircle(center: hd, radius: headR))..style = PaintingStyle.fill);
+    // ── 颈部 ──
+    bone(neck, Offset(0, head.dy + headR));
+    joint(neck, 2.5 * scale);
 
-    // ── 头发 ──
-    if (character != AvatarCharacter.child) {
-      final hc = character == AvatarCharacter.female
-          ? const Color(0xFF3D1C0A) : const Color(0xFF1F1008);
-      final hp = Path()
-        ..moveTo(hd.dx - headR * 0.9, hd.dy - headR * 0.1)
-        ..quadraticBezierTo(hd.dx - headR * 1.02, hd.dy - headR * 1.3, hd.dx, hd.dy - headR * 1.3)
-        ..quadraticBezierTo(hd.dx + headR * 1.02, hd.dy - headR * 1.3, hd.dx + headR * 0.9, hd.dy - headR * 0.1)
-        ..quadraticBezierTo(hd.dx + headR * 0.55, hd.dy - headR * 0.55,
-            hd.dx + headR * 0.35, hd.dy - headR * 1.05)
-        ..quadraticBezierTo(hd.dx, hd.dy - headR * 0.2, hd.dx - headR * 0.35, hd.dy - headR * 1.05)
-        ..quadraticBezierTo(hd.dx - headR * 0.55, hd.dy - headR * 0.55,
-            hd.dx - headR * 0.9, hd.dy - headR * 0.1)
-        ..close();
-      canvas.drawPath(hp, Paint()..color = hc..style = PaintingStyle.fill);
-    }
+    // ── 躯干 ──
+    // 脊柱
+    bone(neck, midHip);
+    // 锁骨
+    bone(neck, lSh);
+    bone(neck, rSh);
 
-    // ── 面部 ──
-    final eyeR = 2.8 * scale * hs;
-    final eox = 6.0 * scale * hs, eoy = -2.5 * scale * hs;
-    for (final ex in [-eox, eox]) {
-      // 眼白
-      canvas.drawOval(
-        Rect.fromCenter(center: Offset(hd.dx + ex, hd.dy + eoy),
-          width: eyeR * 2.2, height: eyeR * 1.5),
-        Paint()..color = Colors.white..style = PaintingStyle.fill);
-      // 瞳孔
-      canvas.drawCircle(
-        Offset(hd.dx + ex + 0.4 * scale * hs, hd.dy + eoy + 0.3 * scale * hs),
-        eyeR * 0.5, Paint()..color = const Color(0xFF1C0E04)..style = PaintingStyle.fill);
-      // 高光
-      canvas.drawCircle(
-        Offset(hd.dx + ex - 0.6 * scale * hs, hd.dy + eoy - 0.8 * scale * hs),
-        eyeR * 0.18, Paint()..color = Colors.white..style = PaintingStyle.fill);
-    }
-    // 眉毛
-    for (final ex in [-eox, eox]) {
-      canvas.drawLine(
-        Offset(hd.dx + ex - eyeR * 1.0, hd.dy + eoy - eyeR * 1.5),
-        Offset(hd.dx + ex + eyeR * 1.0, hd.dy + eoy - eyeR * 0.8),
-        Paint()..color = const Color(0xFF3D1C0A)..strokeWidth = 1.8..strokeCap = StrokeCap.round..style = PaintingStyle.stroke);
-    }
-    // 鼻子 (小圆点)
-    canvas.drawCircle(Offset(hd.dx, hd.dy + 3.0 * scale * hs),
-      1.8 * scale * hs, Paint()..color = skinDark.withValues(alpha: 0.4)..style = PaintingStyle.fill);
-    // 嘴巴 (微笑弧线)
-    final mouthY = hd.dy + 6.0 * scale * hs;
-    canvas.drawPath(
-      Path()..moveTo(hd.dx - 4.0 * scale, mouthY)
-            ..quadraticBezierTo(hd.dx - 1.5 * scale, mouthY - 1.2 * scale,
-                hd.dx, mouthY)
-            ..quadraticBezierTo(hd.dx + 1.5 * scale, mouthY - 1.2 * scale,
-                hd.dx + 4.0 * scale, mouthY),
-      Paint()..color = const Color(0xFFD48888)..style = PaintingStyle.stroke
-             ..strokeWidth = 1.8..strokeCap = StrokeCap.round);
+    // ── 髋部横线 ──
+    bone(lHi, rHi);
 
-    // ── 颈 ──
-    final neckBot = Offset((ls.dx + rs.dx) / 2, (ls.dy + rs.dy) / 2 + 3 * scale);
-    limb(nk, neckBot, skin, 0.5, 0.5);
+    // ── 骨盆连接 ──
+    bone(midHip, lHi);
+    bone(midHip, rHi);
 
-    // ── 肩/髋 ──
-    limb(nk, ls, topColor.withValues(alpha: 0.65), 0.55, 0.85);
-    limb(nk, rs, topColor.withValues(alpha: 0.65), 0.55, 0.85);
-    limb(hp, lhi, pantsColor, 0.65, 1.05);
-    limb(hp, rhi, pantsColor, 0.65, 1.05);
+    // ── 手臂 ──
+    bone(lSh, lEl); bone(lEl, lWr);
+    bone(rSh, rEl); bone(rEl, rWr);
 
     // ── 腿 ──
-    limb(lhi, lkn, pantsColor, 1.05, 0.78);
-    limb(rhi, rkn, pantsColor, 1.05, 0.78);
-    limb(lkn, lft, pantsColor, 0.78, 0.55);
-    limb(rkn, rft, pantsColor, 0.78, 0.55);
+    bone(lHi, lKn); bone(lKn, lAn);
+    bone(rHi, rKn); bone(rKn, rAn);
 
-    // ── 臂 ──
-    limb(ls, le, topColor.withValues(alpha: 0.65), 0.82, 0.68);
-    limb(rs, re, topColor.withValues(alpha: 0.65), 0.82, 0.68);
-    limb(le, lh, skin, 0.68, 0.52);
-    limb(re, rh, skin, 0.68, 0.52);
+    // ── 关节发光点 ──
+    const jR = 3.2; // 基础关节半径
+    joint(lSh, jR * scale);
+    joint(rSh, jR * scale);
+    joint(lEl, jR * 0.85 * scale);
+    joint(rEl, jR * 0.85 * scale);
+    joint(lWr, jR * 0.7 * scale);
+    joint(rWr, jR * 0.7 * scale);
+    joint(midHip, jR * 1.2 * scale);
+    joint(lHi, jR * scale);
+    joint(rHi, jR * scale);
+    joint(lKn, jR * 0.85 * scale);
+    joint(rKn, jR * 0.85 * scale);
+    joint(lAn, jR * 0.7 * scale);
+    joint(rAn, jR * 0.7 * scale);
 
-    // ── 手 (椭圆更自然) ──
-    for (final h in [lh, rh]) {
-      canvas.drawOval(
-        Rect.fromCenter(center: h, width: 10 * scale, height: 6 * scale),
-        Paint()..color = skin..style = PaintingStyle.fill);
+    // ── 地面参考线 ──
+    final groundY = (lAn.dy + rAn.dy).abs() / 2 + 14 * scale + fallLift;
+    // 只在站立/行走时显示更明显
+    if (effectiveFall < 0.5) {
+      canvas.drawLine(
+        Offset(-50 * scale, groundY),
+        Offset(50 * scale, groundY),
+        Paint()
+          ..shader = LinearGradient(
+            colors: [
+              Colors.transparent,
+              glowColor.withValues(alpha: 0.25 * glowAlpha),
+              Colors.transparent,
+            ],
+          ).createShader(Rect.fromLTRB(-50 * scale, groundY, 50 * scale, groundY + 1))
+          ..strokeWidth = 0.8,
+      );
     }
 
-    // ── 鞋 ──
-    for (final ft in [lft, rft]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: ft, width: 16 * scale, height: 9 * scale),
-          Radius.circular(3 * scale)),
-        Paint()..color = shoeC..style = PaintingStyle.fill);
+    // ── HIGH 风险脉冲光环 ──
+    if (isHighRisk) {
+      final pulseR = 95 * scale + math.sin(time * 5.5) * 18 * scale;
+      canvas.drawCircle(
+        proj(0, 10, 0),
+        pulseR,
+        Paint()
+          ..color = glowColor.withValues(alpha: 0.09 * (0.6 + 0.4 * math.sin(time * 6)))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5 * scale
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
     }
-
-    // ── 地面线 ──
-    final gy = (lft.dy + rft.dy) / 2 + 10 * scale;
-    canvas.drawLine(Offset(-90 * scale, gy), Offset(90 * scale, gy),
-      Paint()
-        ..shader = LinearGradient(
-          colors: [Colors.transparent, const Color(0x08000000), Colors.transparent])
-          .createShader(Rect.fromLTRB(-90 * scale, gy, 90 * scale, gy + 1))
-        ..strokeWidth = 1.0);
 
     canvas.restore();
   }
 
-  static (double, double, double) _rotX(double x, double y, double z, double rad) {
-    final c = math.cos(rad), s = math.sin(rad);
-    return (x, y * c - z * s, y * s + z * c);
-  }
-
-  Color _statusColor() {
-    if (fallProbability > 0.6) return const Color(0xFFE04040);
-    if (fallProbability > 0.3) return const Color(0xFFF0A040);
-    if (mode == "bending") return const Color(0xFFE0B830);
-    if (mode == "walking") return const Color(0xFF40B880);
-    return const Color(0xFF3498DB);
-  }
-
   @override
   bool shouldRepaint(covariant AvatarPainter old) {
-    return old.theta != theta || old.phi != phi
-        || old.fallProbability != fallProbability || old.mode != mode
-        || old.time != time || old.character != character;
+    return old.theta != theta ||
+        old.phi != phi ||
+        old.fallProbability != fallProbability ||
+        old.mode != mode ||
+        old.time != time ||
+        old.character != character;
   }
 }

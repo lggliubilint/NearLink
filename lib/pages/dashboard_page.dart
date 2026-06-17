@@ -33,18 +33,16 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> with TickerProviderStateMixin {
   late final AnimationController _scanCtrl;
-  late final TabController _tabCtrl;
   final List<double> _hrHistory = List.generate(20, (_) => 72.0, growable: true);
 
   @override
   void initState() {
     super.initState();
     _scanCtrl = AnimationController(vsync: this, duration: 3.seconds)..repeat();
-    _tabCtrl = TabController(length: 3, vsync: this);
   }
 
   @override
-  void dispose() { _scanCtrl.dispose(); _tabCtrl.dispose(); super.dispose(); }
+  void dispose() { _scanCtrl.dispose(); super.dispose(); }
 
   Color _accent() {
     return switch (widget.classId) {
@@ -129,7 +127,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
           child: Row(children: [
             Expanded(
               child: Column(children: [
-                Text("胸部高度", style: AppTheme.caption()),
+                Text("前腰高度", style: AppTheme.caption()),
                 SizedBox(height: 4.h),
                 Text(widget.hhadm.toStringAsFixed(0), style: AppTheme.mono(36, AppTheme.green)),
                 Text("cm", style: AppTheme.caption()),
@@ -149,40 +147,6 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
             ),
           ]),
         ).animate().fadeIn(delay: 220.ms),
-        SizedBox(height: 12.h),
-
-        // Tab: 药盒/体重秤/手环
-        GlassCard(
-          padding: EdgeInsets.zero,
-          child: Column(children: [
-            TabBar(
-              controller: _tabCtrl,
-              labelStyle: AppTheme.caption().copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-              unselectedLabelStyle: AppTheme.caption().copyWith(fontSize: 13),
-              labelColor: AppTheme.cyan,
-              unselectedLabelColor: AppTheme.textTertiary,
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(10.r),
-                color: AppTheme.cyan.withValues(alpha: 0.1),
-              ),
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(icon: Icon(Icons.medication, size: 18), text: "药盒"),
-                Tab(icon: Icon(Icons.monitor_weight, size: 18), text: "体重秤"),
-                Tab(icon: Icon(Icons.watch, size: 18), text: "手环"),
-              ],
-            ),
-            SizedBox(
-              height: 300.h,
-              child: TabBarView(controller: _tabCtrl, children: [
-                _pillboxTab(),
-                _scaleTab(),
-                _braceletTab(),
-              ]),
-            ),
-          ]),
-        ).animate().fadeIn(delay: 250.ms),
       ]),
     );
   }
@@ -270,91 +234,6 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
-  // ── 药盒 ──
-  Widget _pillboxTab() {
-    return ListView(padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 8.h), children: [
-      _statusCard(Icons.inventory_2, "药仓状态", true, "已打开"),
-      SizedBox(height: 8.h),
-      Row(children: [
-        Expanded(child: _dataCard("舵机角度", "90", "°")),
-        SizedBox(width: 8.w),
-        Expanded(child: _dataCard("红外体温", (widget.data["body_temp"] as num?)?.toStringAsFixed(1) ?? "36.5", "°C")),
-      ]),
-      SizedBox(height: 8.h),
-      _statusCard(Icons.record_voice_over, "语音播报", false, "待机"),
-    ]);
-  }
-
-  // ── 体重秤 ──
-  Widget _scaleTab() {
-    return ListView(padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 8.h), children: [
-      _dataCard("体重", "70.5", "kg"),
-      SizedBox(height: 8.h),
-      _dataCard("压力传感器", "2468", "raw"),
-    ]);
-  }
-
-  // ── 手环 ──
-  Widget _braceletTab() {
-    return ListView(padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 8.h), children: [
-      _dataCard("步数", "${(widget.data["step_count"] as num?)?.toInt() ?? 0}", "步"),
-      SizedBox(height: 8.h),
-      _statusCard(Icons.touch_app, "触控面板", false, "待机"),
-      SizedBox(height: 8.h),
-      Text("六轴传感器", style: AppTheme.h2()),
-      SizedBox(height: 6.h),
-      for (final ax in ["X", "Y", "Z"]) ...[
-        _axisRow("加速度 $ax", 0.0),
-        SizedBox(height: 4.h),
-      ],
-      SizedBox(height: 4.h),
-      for (final ax in ["X", "Y", "Z"]) ...[
-        _axisRow("陀螺仪 $ax", 0.0),
-        SizedBox(height: 4.h),
-      ],
-    ]);
-  }
-
-  Widget _statusCard(IconData ic, String t, bool active, String text) {
-    final c = active ? AppTheme.green : AppTheme.textTertiary;
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
-      child: Row(children: [
-        Icon(ic, size: 18.sp, color: c),
-        SizedBox(width: 10.w),
-        Expanded(child: Text(t, style: AppTheme.body())),
-        Container(width: 8.w, height: 8.w, decoration: BoxDecoration(shape: BoxShape.circle, color: c)),
-        SizedBox(width: 6.w),
-        Text(text, style: AppTheme.caption().copyWith(color: c)),
-      ]),
-    );
-  }
-
-  Widget _dataCard(String t, String v, String u) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12.r), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(t, style: AppTheme.caption()),
-        SizedBox(height: 4.h),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(v, style: AppTheme.mono(22, AppTheme.cyan)),
-          SizedBox(width: 3.w),
-          Padding(padding: EdgeInsets.only(bottom: 3.h), child: Text(u, style: AppTheme.caption()))]),
-      ]),
-    );
-  }
-
-  Widget _axisRow(String l, double v) {
-    return Row(children: [
-      SizedBox(width: 60.w, child: Text(l, style: AppTheme.caption())),
-      Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2.r),
-        child: LinearProgressIndicator(value: ((v.abs() / 10) + 0.05).clamp(0.0, 1.0), minHeight: 3.h, backgroundColor: Colors.white.withValues(alpha: 0.04), valueColor: const AlwaysStoppedAnimation(AppTheme.cyan)))),
-      SizedBox(width: 8.w),
-      Text(v.toStringAsFixed(2), style: AppTheme.caption()),
-    ]);
-  }
 }
 
 class _GaugePainter extends CustomPainter {

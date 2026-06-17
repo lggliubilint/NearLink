@@ -1,4 +1,4 @@
-/// NearLink 星闪跌倒检测 — Med-Tech 数字孪生终端
+/// NearLink 星闪跌倒检测 — Med-Tech 实时姿态终端
 library;
 
 import 'dart:async';
@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'pages/avatar_page.dart';
 import 'pages/dashboard_page.dart';
+import 'pages/device_page.dart';
 import 'pages/profile_page.dart';
 import 'services/alert_service.dart';
 import 'services/huawei_api.dart';
@@ -68,8 +69,9 @@ class _MainPageState extends State<MainPage> {
   String _mode = "standing", _status = "connecting";
   UserProfile? _profile;
   bool _profileDone = false;
-  Timer? _simTimer, _animTimer;
+  Timer? _simTimer, _animTimer, _medTimer;
   double _simFrame = 0, _animTime = 0, _prevFallProb = 0;
+  int _medicationCount = 0;
 
   @override
   void initState() {
@@ -82,6 +84,10 @@ class _MainPageState extends State<MainPage> {
     _api.dataStream.listen(_onData);
     _api.start();
     _animTimer = Timer.periodic(50.ms, (_) => mounted ? setState(() => _animTime += 0.05) : null);
+    // 服药次数 0-4 循环, 每3秒
+    _medTimer = Timer.periodic(3.seconds, (_) {
+      if (mounted) setState(() => _medicationCount = (_medicationCount + 1) % 5);
+    });
     Future.delayed(2.seconds, () {
       if (_status != "connected" && mounted) { setState(() => _status = "simulated"); _startSim(); }
     });
@@ -114,50 +120,61 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _genSim() {
-    final t = _simFrame, p = t % 8;
-    double th = 8, ph = _phi, v = 1, hh = 100;
+    final t = _simFrame;
+    // 每 5 秒切换一次: 行走(5s) → 弯腰(5s) → 跌倒(5s) → 恢复(3s) → 循环
+    const cycle = 18.0;  // 5+5+5+3 = 18s 一个完整周期
+    final p = t % cycle;
+    final hhBase = _profile?.hhadmBaseline ?? 100.0;
+    final angleTh = _profile?.fallAngleThreshold ?? 20.0;
+    final sens = _profile?.riskSensitivity ?? 0.6;
+
+    double th = 8, ph = _phi, v = 1, hh = hhBase;
     double pw = 1.0, pb = 0.0, pf = 0.0, pr = 0.0;
     int cid = 0;
     String cn = 'walking', md = "standing";
-    if (p < 3) {
+    if (p < 5) {
+      // 行走 5s
       md = "walking"; th = 8 + 3 * math.sin(t * 2); ph = (t * 15) % 360; v = 1.5;
       pw = 0.85; pb = 0.05; pf = 0.02; pr = 0.08; cid = 0; cn = 'walking';
-    }
-    else if (p < 4) {
-      final x = p - 3; md = "bending"; th = 8 + x * 35; v = 3 + x * 2; hh = 100 - x * 10;
-      pw = 0.2 - x * 0.15; pb = 0.6 + x * 0.3; pf = 0.1 + x * 0.15; pr = 0.1 - x * 0.05;
+    } else if (p < 10) {
+      // 弯腰 5s
+      final x = (p - 5) / 5.0; md = "bending";
+      th = angleTh + x * (angleTh * 1.6); v = 3 + x * 2;
+      hh = hhBase - x * (hhBase * 0.5);
+      pw = 0.2 - x * 0.15; pb = 0.6 + x * 0.3; pf = 0.1 + x * 0.15 * sens; pr = 0.1 - x * 0.05;
       cid = 1; cn = 'bending';
-    }
-    else if (p < 5) {
-      final x = p - 4; md = "falling"; th = 8 + x * 55; v = 5 + x * 10; hh = 100 - x * 75;
-      pw = 0.05; pb = 0.1 - x * 0.08; pf = 0.3 + x * 0.7; pr = 0.05;
+    } else if (p < 15) {
+      // 跌倒 5s
+      final x = (p - 10) / 5.0; md = x > 0.6 ? "fallen" : "falling";
+      th = angleTh + x * (80 - angleTh); v = 5 + x * 10;
+      hh = hhBase - x * (hhBase * 0.88);
+      pw = 0.05; pb = 0.1 - x * 0.08; pf = 0.3 * sens + x * 0.7 * sens; pr = 0.05;
       cid = 2; cn = 'fall';
-    }
-    else if (p < 6.5) {
-      md = "fallen"; th = 63; ph += 0.3; hh = 20;
-      pw = 0.02; pb = 0.03; pf = 0.92; pr = 0.03; cid = 2; cn = 'fall';
-    }
-    else {
-      final x = (p - 6.5) / 1.5; md = "recovering"; th = 63 - x * 55; hh = 20 + x * 80;
-      pw = 0.05 + x * 0.15; pb = 0.05; pf = 0.9 - x * 0.85; pr = 0.0 + x * 0.85;
+    } else {
+      // 恢复 3s
+      final x = (p - 15) / 3.0; md = "recovering";
+      th = 83 - x * (83 - angleTh * 0.4); hh = hhBase * 0.12 + x * (hhBase * 0.88);
+      pw = 0.05 + x * 0.15; pb = 0.05; pf = (0.9 - x * 0.85) * sens; pr = 0.0 + x * 0.85;
       cid = 3; cn = 'recovery';
     }
+    final fp = pf.clamp(0.0, 1.0);
     if (mounted) setState(() {
       _theta = th; _phi = ph % 360; _vdp = v; _hhadm = hh;
-      _fallProb = pf; _probWalking = pw; _probBending = pb; _probRecovery = pr;
+      _fallProb = fp; _probWalking = pw; _probBending = pb; _probRecovery = pr;
       _classId = cid; _className = cn; _mode = md;
     });
     _checkAlert();
   }
 
   void _checkAlert() {
-    if (_fallProb > 0.7 && _prevFallProb <= 0.7) _alert.triggerFallAlert(probability: _fallProb, mode: _mode);
-    else if (_fallProb < 0.3 && _prevFallProb > 0.3) _alert.cancelAlert();
+    final alertTh = (_profile?.riskSensitivity ?? 0.6) * 1.05;
+    if (_fallProb > alertTh && _prevFallProb <= alertTh) _alert.triggerFallAlert(probability: _fallProb, mode: _mode);
+    else if (_fallProb < alertTh * 0.45 && _prevFallProb > alertTh * 0.45) _alert.cancelAlert();
     _prevFallProb = _fallProb;
   }
 
   @override
-  void dispose() { _api.dispose(); _simTimer?.cancel(); _animTimer?.cancel(); _pageCtrl.dispose(); super.dispose(); }
+  void dispose() { _api.dispose(); _simTimer?.cancel(); _animTimer?.cancel(); _medTimer?.cancel(); _pageCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +204,7 @@ class _MainPageState extends State<MainPage> {
             classId: _classId,
             className: _className,
           ),
+          DevicePage(data: _genDashData(), medicationCount: _medicationCount),
         ],
         ),
       ),
@@ -205,8 +223,9 @@ class _MainPageState extends State<MainPage> {
             onDestinationSelected: (i) => _pageCtrl.animateToPage(i, duration: 300.ms, curve: Curves.easeOutCubic),
             indicatorColor: AppTheme.cyan.withValues(alpha: 0.12),
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.person_search), label: "数字孪生"),
+              NavigationDestination(icon: Icon(Icons.accessibility_new), label: "实时姿态"),
               NavigationDestination(icon: Icon(Icons.ssid_chart), label: "仪表盘"),
+              NavigationDestination(icon: Icon(Icons.devices_other), label: "智能设备"),
             ],
           ),
         ),
